@@ -6,3 +6,4 @@ msgpack==1.0.0
 fastapi==0.61.0
 uvicorn==0.11.8
 msgpack-asgi==1.0.0
+orjson==3.3.1
