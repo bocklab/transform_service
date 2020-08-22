@@ -9,10 +9,12 @@ import process
 import msgpack
 
 
-from flask import Flask, request, jsonify, Response, make_response
-app = Flask(__name__)
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+from msgpack_asgi import MessagePackMiddleware
 
-from flask.json import JSONEncoder
+app = FastAPI()
+app.add_middleware(MessagePackMiddleware)
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -45,28 +47,17 @@ def get_n5(n5dataset, mip):
         raise
 
 #
-# Create a new werkzeug routing rule to support both integers and floating point numbers.
-# For output, generate float only if a decimal is required.
+# Main page of the service
 #
-from werkzeug.routing import FloatConverter as BaseFloatConverter
-class SpecialNumberConverter(BaseFloatConverter):
-    regex = r'-?\d+(\.\d+)?'
-    #num_convert = lambda self, x: int(x) if float(x).is_integer() else float(x)
-
-    def num_convert(self, x):
-        x = round(float(x), 2)
-        if x.is_integer():
-            return int(x)
-        else:
-            return x
-
-app.url_map.converters['number'] = SpecialNumberConverter
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def root():
+    return """<h1>Docs coming soon.</h1>"""
 
 #
 # Single point vector field query
 #
-@app.route('/dataset/<string:dataset>/s/<int:scale>/z/<number:z>/x/<number:x>/y/<number:y>/')
-def view_link(dataset, scale, z, x, y):
+@app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/')
+def view_link(dataset: str, scale: int, z: int, x: int, y: int):
     n5 = get_n5(dataset, scale)
 
     voxel_offset = n5.attrs['voxel_offset']
@@ -82,156 +73,152 @@ def view_link(dataset, scale, z, x, y):
          'dx' : dx, 'dy' : dy,
      }
 
-    return jsonify(result)
+    return result
 
 
-#
-# Implement the bulk point interface.
-# This has been "stolen" from Philipp's CloudVolumeServer
-#
-@app.route("/dataset/<string:dataset>/s/<int:scale>/values", methods=['POST'])
-def values(dataset, scale):
-    """Return segment IDs at given locations."""
+# #
+# # Implement the bulk point interface.
+# # This has been "stolen" from Philipp's CloudVolumeServer
+# #
+# @app.route("/dataset/<string:dataset>/s/<int:scale>/values", methods=['POST'])
+# def values(dataset, scale):
+#     """Return segment IDs at given locations."""
 
-    # Parse values
-    try:
-        locs = None
-        if request.mimetype == 'application/json':
-            # Handle JSON
-            locs = request.json['locations']
-        elif request.mimetype in ["application/msgpack", "application/x-msgpack"]:
-            locs = msgpack.unpackb(request.get_data())['locations']
-        else:
-            raise Exception("Unexpected mimetype: {}".format(request.mimetype))
+#     # Parse values
+#     try:
+#         locs = None
+#         if request.mimetype == 'application/json':
+#             # Handle JSON
+#             locs = request.json['locations']
+#         elif request.mimetype in ["application/msgpack", "application/x-msgpack"]:
+#             locs = msgpack.unpackb(request.get_data())['locations']
+#         else:
+#             raise Exception("Unexpected mimetype: {}".format(request.mimetype))
 
-        if not locs:
-            return make_response(jsonify({'error': 'No locations provided'}), 400)
+#         if not locs:
+#             return make_response(jsonify({'error': 'No locations provided'}), 400)
 
-        locs = np.array(locs).astype(np.float32)
+#         locs = np.array(locs).astype(np.float32)
 
-        if locs.shape[0] > config.MaxLocations:
-            err = {'error': 'Max number of locations ({}) exceeded'.format(config.MaxLocations)}
-            return make_response(jsonify(err), 400)
+#         if locs.shape[0] > config.MaxLocations:
+#             err = {'error': 'Max number of locations ({}) exceeded'.format(config.MaxLocations)}
+#             return make_response(jsonify(err), 400)
 
-        # scale & adjust locations
-        transformed = map_points(dataset, scale, locs)
+#         # scale & adjust locations
+#         transformed = map_points(dataset, scale, locs)
 
-        # Apply results
-        results = []
-        for i in range(transformed.shape[0]):
-            row = transformed[i]
-            results.append({
-                'x': float(row['x']),
-                'y': float(row['y']),
-                'z': float(row['z']),
-                'dx': float(row['dx']),
-                'dy': float(row['dy'])
-            })
+#         # Apply results
+#         results = []
+#         for i in range(transformed.shape[0]):
+#             row = transformed[i]
+#             results.append({
+#                 'x': float(row['x']),
+#                 'y': float(row['y']),
+#                 'z': float(row['z']),
+#                 'dx': float(row['dx']),
+#                 'dy': float(row['dy'])
+#             })
 
-        if request.mimetype in ["application/msgpack", "application/x-msgpack"]:
-            return(msgpack.packb(results))
-        else:
-            return jsonify(results)
+#         if request.mimetype in ["application/msgpack", "application/x-msgpack"]:
+#             return(msgpack.packb(results))
+#         else:
+#             return jsonify(results)
 
-    except BaseException as e:
-        app.logger.error('Error: {}'.format(e))
-        err = {'error': str(e)}
-        return make_response(jsonify(err), 400)
-
-
-
-# Implement the bulk point interface with input arrays (for Greg)
-@app.route("/dataset/<string:dataset>/s/<int:scale>/values_array", methods=['POST'])
-def values_array(dataset, scale):
-    """Return segment IDs at given locations."""
-
-    # Parse values
-    try:
-        locs = None
-        if request.mimetype == 'application/json':
-            # Handle JSON
-            locs = request.json
-        elif request.mimetype in ["application/msgpack", "application/x-msgpack"]:
-            locs = msgpack.unpackb(request.get_data())
-        else:
-            raise Exception("Unexpected mimetype: {}".format(request.mimetype))
-
-        if not locs:
-            return make_response(jsonify({'error': 'No locations provided'}), 400)
-
-        # Get a Nx3 array of points
-        locs = np.array([locs['x'], locs['y'], locs['z']]).astype(np.float32).swapaxes(0,1)
-
-        if locs.shape[0] > config.MaxLocations:
-            err = {'error': 'Max number of locations ({}) exceeded'.format(config.MaxLocations)}
-            return make_response(jsonify(err), 400)
-
-        # scale & adjust locations
-        transformed = map_points(dataset, scale, locs)
-
-        # Set results
-        results = {
-                'x': transformed['x'].tolist(),
-                'y': transformed['y'].tolist(),
-                'z': transformed['z'].tolist(),
-                'dx': transformed['dx'].tolist(),
-                'dy': transformed['dy'].tolist()
-            }
-
-        if request.mimetype in ["application/msgpack", "application/x-msgpack"]:
-            return(msgpack.packb(results))
-        else:
-            return jsonify(results)
-
-    except BaseException as e:
-        app.logger.error('Error: {}'.format(e))
-        err = {'error': str(e)}
-        return make_response(jsonify(err), 400)
+#     except BaseException as e:
+#         app.logger.error('Error: {}'.format(e))
+#         err = {'error': str(e)}
+#         return make_response(jsonify(err), 400)
 
 
 
-def map_points(dataset, scale, locs):
-    """Do the work for mapping data.
-       Input:  [n,3] numpy array representing n (x,y,z) points
-       Output: [n,5] numpy array representing n (new_x, new_y, new_z, new_dx, new_dy)
-    """
-    n5 = get_n5(dataset, scale)
-    voxel_offset = n5.attrs['voxel_offset']
+# # Implement the bulk point interface with input arrays (for Greg)
+# @app.route("/dataset/<string:dataset>/s/<int:scale>/values_array", methods=['POST'])
+# def values_array(dataset, scale):
+#     """Return segment IDs at given locations."""
 
-    query_points = np.empty_like(locs)
-    query_points[:,0] = (locs[:,0] // 2**scale) - voxel_offset[0]
-    query_points[:,1] = (locs[:,1] // 2**scale) - voxel_offset[1]
-    query_points[:,2] = (locs[:,2] - voxel_offset[2])
+#     # Parse values
+#     try:
+#         locs = None
+#         if request.mimetype == 'application/json':
+#             # Handle JSON
+#             locs = request.json
+#         elif request.mimetype in ["application/msgpack", "application/x-msgpack"]:
+#             locs = msgpack.unpackb(request.get_data())
+#         else:
+#             raise Exception("Unexpected mimetype: {}".format(request.mimetype))
 
-    bad_points = ((query_points <= [0,0,0]) | (query_points >= np.array(n5.shape)[0:3])).all(axis=1)
-    query_points[bad_points] = np.NaN
+#         if not locs:
+#             return make_response(jsonify({'error': 'No locations provided'}), 400)
 
-    try:
-        if bad_points.all():
-            # No valid points. The binning code will otherwise fail.
-            # Make a fake field of NaN
-            field = np.full((query_points.shape[0], 2), np.NaN)
-        else:
-            field = process.get_multiple_ids(query_points, n5,
-                                            max_workers=config.MaxWorkers)
-    except BaseException:
-        tb = traceback.format_exc()
-        app.logger.error('Error: {}'.format(tb))
-        return make_response(jsonify({'error': str(tb)}), 500)
+#         # Get a Nx3 array of points
+#         locs = np.array([locs['x'], locs['y'], locs['z']]).astype(np.float32).swapaxes(0,1)
 
-    results = np.zeros(locs.shape[0], dtype=[('x', '<f4'), ('y', '<f4'), ('z', '<f4'), ('dx', '<f4'), ('dy', '<f4')])
+#         if locs.shape[0] > config.MaxLocations:
+#             err = {'error': 'Max number of locations ({}) exceeded'.format(config.MaxLocations)}
+#             return make_response(jsonify(err), 400)
 
-    # Apply results
+#         # scale & adjust locations
+#         transformed = map_points(dataset, scale, locs)
 
-    # (dx, dy) = np.flip(field[i] / 4.0)
-    results['dx'] = field[:,1] / 4.0
-    results['dy'] = field[:,0] / 4.0
-    results['x'] = locs[:,0] + results['dx']
-    results['y'] = locs[:,1] + results['dy']
-    results['z'] = locs[:,2]
+#         # Set results
+#         results = {
+#                 'x': transformed['x'].tolist(),
+#                 'y': transformed['y'].tolist(),
+#                 'z': transformed['z'].tolist(),
+#                 'dx': transformed['dx'].tolist(),
+#                 'dy': transformed['dy'].tolist()
+#             }
 
-    return results
+#         if request.mimetype in ["application/msgpack", "application/x-msgpack"]:
+#             return(msgpack.packb(results))
+#         else:
+#             return jsonify(results)
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-    app.run(debug=True)
+#     except BaseException as e:
+#         app.logger.error('Error: {}'.format(e))
+#         err = {'error': str(e)}
+#         return make_response(jsonify(err), 400)
+
+
+
+# def map_points(dataset, scale, locs):
+#     """Do the work for mapping data.
+#        Input:  [n,3] numpy array representing n (x,y,z) points
+#        Output: [n,5] numpy array representing n (new_x, new_y, new_z, new_dx, new_dy)
+#     """
+#     n5 = get_n5(dataset, scale)
+#     voxel_offset = n5.attrs['voxel_offset']
+
+#     query_points = np.empty_like(locs)
+#     query_points[:,0] = (locs[:,0] // 2**scale) - voxel_offset[0]
+#     query_points[:,1] = (locs[:,1] // 2**scale) - voxel_offset[1]
+#     query_points[:,2] = (locs[:,2] - voxel_offset[2])
+
+#     bad_points = ((query_points <= [0,0,0]) | (query_points >= np.array(n5.shape)[0:3])).all(axis=1)
+#     query_points[bad_points] = np.NaN
+
+#     try:
+#         if bad_points.all():
+#             # No valid points. The binning code will otherwise fail.
+#             # Make a fake field of NaN
+#             field = np.full((query_points.shape[0], 2), np.NaN)
+#         else:
+#             field = process.get_multiple_ids(query_points, n5,
+#                                             max_workers=config.MaxWorkers)
+#     except BaseException:
+#         tb = traceback.format_exc()
+#         app.logger.error('Error: {}'.format(tb))
+#         return make_response(jsonify({'error': str(tb)}), 500)
+
+#     results = np.zeros(locs.shape[0], dtype=[('x', '<f4'), ('y', '<f4'), ('z', '<f4'), ('dx', '<f4'), ('dy', '<f4')])
+
+#     # Apply results
+
+#     # (dx, dy) = np.flip(field[i] / 4.0)
+#     results['dx'] = field[:,1] / 4.0
+#     results['dy'] = field[:,0] / 4.0
+#     results['x'] = locs[:,0] + results['dx']
+#     results['y'] = locs[:,1] + results['dy']
+#     results['z'] = locs[:,2]
+
+#     return results
