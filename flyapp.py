@@ -7,6 +7,7 @@ import numpy as np
 import orjson
 import process
 import msgpack
+import uvicorn
 
 from typing import Optional, List, Any, Tuple
 
@@ -26,7 +27,7 @@ class ORJSONResponse(JSONResponse):
     def render(self, content: Any) -> bytes:
         return orjson.dumps(content)
 
-app = FastAPI(default_response_class=ORJSONResponse)
+app = FastAPI(default_response_class=ORJSONResponse, debug=True)
 app.add_middleware(MessagePackMiddleware)
 
 open_n5_mip = {}
@@ -187,3 +188,7 @@ def map_points(dataset, scale, locs):
     results['z'] = locs[:,2]
 
     return results
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

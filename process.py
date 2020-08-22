@@ -63,19 +63,18 @@ def get_multiple_ids(x, vol, max_workers=mp.cpu_count() - 5):
         max_workers = 1
 
     # Hard coded block size
-    blocksize = np.array([1024, 1024, 8])
+    blocksize = np.array([512, 512, 32])
 
     # Make bins to fit with blocksize
-    xbins = np.arange(0, np.nanmax(x) + blocksize[0], blocksize[0]).astype(int)
-    ybins = np.arange(0, np.nanmax(x) + blocksize[1], blocksize[1]).astype(int)
-    zbins = np.arange(0, np.nanmax(x) + blocksize[2], blocksize[2]).astype(int)
+    xbins = np.arange(0, np.nanmax(x) + blocksize[0] + 1, blocksize[0]).astype(int)
+    ybins = np.arange(0, np.nanmax(x) + blocksize[1] + 1, blocksize[1]).astype(int)
+    zbins = np.arange(0, np.nanmax(x) + blocksize[2] + 1, blocksize[2]).astype(int)
 
     # Sort data into bins
     cbin = pd.DataFrame(x)
     cbin['x_bin'] = pd.cut(cbin[0], xbins, include_lowest=True, right=False)
     cbin['y_bin'] = pd.cut(cbin[1], ybins, include_lowest=True, right=False)
     cbin['z_bin'] = pd.cut(cbin[2], zbins, include_lowest=True, right=False)
-
     # This is now a dictionary of bin -> indices of coordinates
     # blocked = cbin.groupby(['x_bin', 'y_bin', 'z_bin']).indices
 
