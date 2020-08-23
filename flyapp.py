@@ -68,6 +68,18 @@ async def root():
 </body>
 </html>"""
 
+@app.get('/info/')
+def dataset():
+    """Retrieve a list of available datasources."""
+    cleaned_datsets = {}
+    for k, info in config.DATASOURCES.items():
+        cleaned_datsets[k] = {}
+        for field in ('scales', 'voxel_size', 'description'):
+            cleaned_datsets[k][field] = info.get(field, None)
+        
+    return cleaned_datsets
+
+
 #
 # Single point vector field query
 #
