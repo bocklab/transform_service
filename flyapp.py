@@ -11,10 +11,10 @@ import uvicorn
 
 from typing import Optional, List, Any, Tuple
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.responses import HTMLResponse
 from msgpack_asgi import MessagePackMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
 
 import config
@@ -32,28 +32,33 @@ app.add_middleware(MessagePackMiddleware)
 
 open_n5_mip = {}
 
-def get_n5(n5dataset, mip):
+def get_datasource(dataset_name, mip):
     # Attempt to open & store handle to n5 groups
-    key = (n5dataset, mip)
+    key = (dataset_name, mip)
     if key in open_n5_mip:
         return open_n5_mip[key]
-    try:
-        datainfo = config.DATASOURCES[n5dataset]
-        if datainfo['type'] not in ['n5', 'zarr']:
-            raise Exception("Datasource type is not supported")
-        if mip not in datainfo['scales']:
-            raise Exception("Scale not found")
 
-        if datainfo['type'] == 'n5':
-            zroot = zarr.open(datainfo['path'], mode='r')
-        else:
-                store = zarr.NestedDirectoryStore(datainfo['path'])
-                zroot = zarr.group(store=store)
-        s = zroot["s%d" % mip]
-        open_n5_mip[key] = s
-        return s
-    except:
-        raise
+    if dataset_name not in config.DATASOURCES:
+        raise HTTPException(status_code=400, detail="Dataset {} not found".format(dataset_name))
+    
+    datainfo = config.DATASOURCES[dataset_name]
+        
+    if mip not in datainfo['scales']:
+        raise HTTPException(status_code=400, detail="Scale {} not found".format(mip))
+
+    if datainfo['type'] == 'n5':
+        zroot = zarr.open(datainfo['path'], mode='r')
+    elif datainfo['type'] == 'zarr':
+        zroot = zarr.open(datainfo['path'], mode='r')
+    elif datainfo['type'] == 'zarr-nested':
+        store = zarr.NestedDirectoryStore(datainfo['path'])
+        zroot = zarr.group(store=store)
+    else:
+        raise HTTPException(status_code=400, detail="Datasource type '{}' not found".format(datainfo['type'] ))
+        
+    s = zroot["s%d" % mip]
+    open_n5_mip[key] = s
+    return s
 
 #
 # Main page of the service
@@ -64,12 +69,12 @@ async def root():
 <head><title>Transformation Service</title></head>
 <body>
 <h1>Transformation Service</h1>
-<a href="docs/">API docs</a>.
+See the <a href="docs/">API docs</a>.
 </body>
 </html>"""
 
 @app.get('/info/')
-def dataset():
+async def dataset_info():
     """Retrieve a list of available datasources."""
     cleaned_datsets = {}
     for k, info in config.DATASOURCES.items():
@@ -86,7 +91,7 @@ def dataset():
 @app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/')
 def view_link(dataset: str, scale: int, z: int, x: int, y: int):
     """Query a single point."""
-    n5 = get_n5(dataset, scale)
+    n5 = get_datasource(dataset, scale)
 
     voxel_offset = n5.attrs['voxel_offset']
     query_point = ((x // 2**scale) - voxel_offset[0], (y // 2**scale) - voxel_offset[1], (z - voxel_offset[2]))
@@ -172,7 +177,7 @@ def map_points(dataset, scale, locs):
        Input:  [n,3] numpy array representing n (x,y,z) points
        Output: [n,5] numpy array representing n (new_x, new_y, new_z, new_dx, new_dy)
     """
-    n5 = get_n5(dataset, scale)
+    n5 = get_datasource(dataset, scale)
     voxel_offset = n5.attrs['voxel_offset']
 
     query_points = np.empty_like(locs)

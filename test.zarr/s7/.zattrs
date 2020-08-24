@@ -1,0 +1,13 @@
+{
+    "resolution": [
+        512,
+        512,
+        40
+    ],
+    "source_mip": 7,
+    "voxel_offset": [
+        0,
+        0,
+        0
+    ]
+}
