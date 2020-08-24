@@ -5,7 +5,6 @@ import traceback
 import zarr
 import numpy as np
 import orjson
-import process
 import msgpack
 import uvicorn
 
@@ -17,7 +16,8 @@ from msgpack_asgi import MessagePackMiddleware
 from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
 
-import config
+from . import config
+from . import process
 
 # Use orjson for NaN -> null and numpy support
 # Source: https://github.com/tiangolo/fastapi/issues/459
