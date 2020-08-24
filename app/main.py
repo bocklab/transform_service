@@ -213,7 +213,7 @@ def map_points(dataset, scale, locs):
        Output: [n,5] numpy array representing n (new_x, new_y, new_z, new_dx, new_dy)
     """
     n5 = get_datasource(dataset, scale)
-    blocksize = np.asarray(n5.shape[:3]) * 2
+    blocksize = np.asarray(n5.chunks[:3]) * 2
     voxel_offset = n5.attrs['voxel_offset']
 
     query_points = np.empty_like(locs)
