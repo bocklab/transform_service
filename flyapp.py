@@ -178,6 +178,7 @@ def map_points(dataset, scale, locs):
        Output: [n,5] numpy array representing n (new_x, new_y, new_z, new_dx, new_dy)
     """
     n5 = get_datasource(dataset, scale)
+    blocksize = np.asarray(n5.shape[:3]) * 2
     voxel_offset = n5.attrs['voxel_offset']
 
     query_points = np.empty_like(locs)
@@ -193,7 +194,8 @@ def map_points(dataset, scale, locs):
         field = np.full((query_points.shape[0], 2), np.NaN)
     else:
         field = process.get_multiple_ids(query_points, n5,
-                                        max_workers=config.MaxWorkers)
+                                        max_workers=config.MaxWorkers,
+                                        blocksize=blocksize)
 
     results = np.zeros(locs.shape[0], dtype=[('x', '<f4'), ('y', '<f4'), ('z', '<f4'), ('dx', '<f4'), ('dy', '<f4')])
 

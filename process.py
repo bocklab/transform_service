@@ -44,7 +44,7 @@ def _get_ids(vol, bl, co):
     return co_id
 
 
-def get_multiple_ids(x, vol, max_workers=mp.cpu_count() - 5):
+def get_multiple_ids(x, vol, max_workers=mp.cpu_count() - 5, blocksize=np.array([512, 512, 32])):
     """Return multiple segment IDs using cloudvolume.
 
     Parameters
@@ -61,9 +61,6 @@ def get_multiple_ids(x, vol, max_workers=mp.cpu_count() - 5):
 
     if not max_workers:
         max_workers = 1
-
-    # Hard coded block size
-    blocksize = np.array([512, 512, 32])
 
     # Make bins to fit with blocksize
     xbins = np.arange(0, np.nanmax(x) + blocksize[0] + 1, blocksize[0]).astype(int)
