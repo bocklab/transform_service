@@ -125,7 +125,7 @@ def point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
 
     locs = np.asarray([[x,y,z]])
 
-    transformed = map_points(dataset, scale, locs)
+    transformed = map_points(dataset.value, scale, locs)
 
     result = {
          'x': transformed['x'].tolist()[0],
@@ -152,7 +152,7 @@ def values(dataset: DataSetName, scale: int, data : PointList):
             detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
 
     # scale & adjust locations
-    transformed = map_points(dataset, scale, locs)
+    transformed = map_points(dataset.value, scale, locs)
 
     # Apply results
     results = []
@@ -193,7 +193,7 @@ def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
             detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
 
     # scale & adjust locations
-    transformed = map_points(dataset, scale, locs)
+    transformed = map_points(dataset.value, scale, locs)
 
     # Set results
     results = {
