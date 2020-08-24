@@ -31,7 +31,9 @@ The selection of scale (mip) selects the granularity of the field being used, bu
 
 Error values are returned as `null`, not `NaN` as done with the previous iteration of this service. The most likely cause of an error is being out-of-bounds of the underlying array.
 
-_Note on using [msgpack](https://msgpack.org/)_: Use `Content-type: application/x-msgpack` and `Accept: application/x-msgpack` to use msgpack instead of JSON.
+_Note on using [msgpack](https://msgpack.org/)_: Use `Content-type: application/x-msgpack` and `Accept: application/x-msgpack` to use msgpack instead of JSON. There is currently data size limit of *64KB* when using msgpack. I am currently looking for a workaround.
+
+_Wnat a binary endpoint?_ I am considering either npz or raw C-style arrays.
 
 Questions? Feel free to bug Eric on FAFB or FlyWire slack.
 """
@@ -48,7 +50,13 @@ app = FastAPI(default_response_class=ORJSONResponse,
                 title="Transformation Service",
                 description=api_description,
                 debug=True)
-app.add_middleware(MessagePackMiddleware)
+
+# MessagePackMiddleware does not currently support large request (`more_body`) so we'll do our own...
+# app.add_middleware(MessagePackMiddleware)
+
+
+
+
 
 open_n5_mip = {}
 
