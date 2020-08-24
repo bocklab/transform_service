@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import logging
 import traceback
+from enum import Enum
 
 import zarr
 import numpy as np
@@ -104,6 +105,10 @@ async def dataset_info():
     return cleaned_datsets
 
 
+# Datasets to be displayed in UI if they are part of an enum...
+# This is a hack to populate the values.
+DataSetName = Enum("DataSetName", dict(zip(config.DATASOURCES.keys(), config.DATASOURCES.keys())))
+
 #
 # Single point vector field query
 #
@@ -115,7 +120,7 @@ class PointResponse(BaseModel):
     dy: float
 
 @app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse)
-def point_value(dataset: str, scale: int, z: int, x: float, y: float):
+def point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
     """Query a single point."""
 
     locs = np.asarray([[x,y,z]])
@@ -137,7 +142,7 @@ class PointList(BaseModel):
     locations : List[Tuple[float, float, float]]
 
 @app.post('/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse])
-def values(dataset: str, scale: int, data : PointList):
+def values(dataset: DataSetName, scale: int, data : PointList):
     """Return segment IDs at given locations."""
 
     locs = np.array(data.locations).astype(np.float32)
@@ -177,7 +182,7 @@ class ColumnPointListResponse(BaseModel):
     dy: List[float]
 
 @app.post('/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse)
-def values_array(dataset: str, scale: int, locs : ColumnPointList):
+def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return segment IDs at given locations."""
 
     # Get a Nx3 array of points
