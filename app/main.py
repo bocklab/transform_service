@@ -19,6 +19,22 @@ from starlette.responses import JSONResponse
 from . import config
 from . import process
 
+api_description = """
+This service will take a set of points and will transform them using the specified field.
+
+Query units should be in *pixels* at full resolution (e.g. mip=0), which generally maps to the pixel values shown in CATMAID or Neuroglancer.
+
+The return values are the transformed {x,y,z} along with the {dx,dy} values from the field.
+
+The selection of scale (mip) selects the granularity of the field being used, but does not change the units.
+
+Error values are returned as `null`, not `NaN` as done with the previous iteration of this service. The most likely cause of an error is being out-of-bounds of the underlying array.
+
+_Note on using [msgpack](https://msgpack.org/)_: Use `Content-type: application/x-msgpack` and `Accept: application/x-msgpack` to use msgpack instead of JSON.
+
+Questions? Feel free to bug Eric on FAFB or FlyWire slack.
+"""
+
 # Use orjson for NaN -> null and numpy support
 # Source: https://github.com/tiangolo/fastapi/issues/459
 class ORJSONResponse(JSONResponse):
@@ -27,7 +43,10 @@ class ORJSONResponse(JSONResponse):
     def render(self, content: Any) -> bytes:
         return orjson.dumps(content)
 
-app = FastAPI(default_response_class=ORJSONResponse, debug=True)
+app = FastAPI(default_response_class=ORJSONResponse,
+                title="Transformation Service",
+                description=api_description,
+                debug=True)
 app.add_middleware(MessagePackMiddleware)
 
 open_n5_mip = {}
@@ -69,7 +88,7 @@ async def root():
 <head><title>Transformation Service</title></head>
 <body>
 <h1>Transformation Service</h1>
-See the <a href="docs/">API docs</a>.
+Please see the <a href="docs/">API documentation</a> for usage info.
 </body>
 </html>"""
 
@@ -88,22 +107,27 @@ async def dataset_info():
 #
 # Single point vector field query
 #
-@app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/')
-def view_link(dataset: str, scale: int, z: int, x: int, y: int):
-    """Query a single point."""
-    n5 = get_datasource(dataset, scale)
+class PointResponse(BaseModel):
+    x: float
+    y: float
+    z: float
+    dx: float
+    dy: float
 
-    voxel_offset = n5.attrs['voxel_offset']
-    query_point = ((x // 2**scale) - voxel_offset[0], (y // 2**scale) - voxel_offset[1], (z - voxel_offset[2]))
-    (dx, dy) = np.flip(np.float32(n5[query_point[0],query_point[1],query_point[2],:] / 4.0))
-    
-    # float32 -> float for JSON
-    dx = float(dx)
-    dy = float(dy)
-    
+@app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse)
+def point_value(dataset: str, scale: int, z: int, x: float, y: float):
+    """Query a single point."""
+
+    locs = np.asarray([[x,y,z]])
+
+    transformed = map_points(dataset, scale, locs)
+
     result = {
-         'z':z, 'x':x+dx, 'y':y+dy,
-         'dx' : dx, 'dy' : dy,
+         'x': transformed['x'].tolist()[0],
+         'y': transformed['y'].tolist()[0],
+         'z': transformed['z'].tolist()[0],
+         'dx': transformed['dx'].tolist()[0],
+         'dy': transformed['dy'].tolist()[0]
      }
 
     return result
@@ -112,8 +136,7 @@ def view_link(dataset: str, scale: int, z: int, x: int, y: int):
 class PointList(BaseModel):
     locations : List[Tuple[float, float, float]]
 
-
-@app.post('/dataset/{dataset}/s/{scale}/values')
+@app.post('/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse])
 def values(dataset: str, scale: int, data : PointList):
     """Return segment IDs at given locations."""
 
@@ -146,7 +169,14 @@ class ColumnPointList(BaseModel):
     y: List[float]
     z: List[float]
 
-@app.post('/dataset/{dataset}/s/{scale}/values_array')
+class ColumnPointListResponse(BaseModel):
+    x: List[float]
+    y: List[float]
+    z: List[float]
+    dx: List[float]
+    dy: List[float]
+
+@app.post('/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse)
 def values_array(dataset: str, scale: int, locs : ColumnPointList):
     """Return segment IDs at given locations."""
 
@@ -199,7 +229,11 @@ def map_points(dataset, scale, locs):
 
     results = np.zeros(locs.shape[0], dtype=[('x', '<f4'), ('y', '<f4'), ('z', '<f4'), ('dx', '<f4'), ('dy', '<f4')])
 
-    # (dx, dy) = np.flip(field[i] / 4.0)
+    # From Tommy Macrina:
+    #   We store the vectors as fixed-point int16 with two bits for the decimal.
+    #   Even if a vector is stored at a different MIP level (e.g. these are stored at MIP2),
+    #   the vectors represent MIP0 displacements, so there's no further scaling required.
+
     results['dx'] = field[:,1] / 4.0
     results['dy'] = field[:,0] / 4.0
     results['x'] = locs[:,0] + results['dx']
