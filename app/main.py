@@ -2,6 +2,7 @@
 import logging
 import traceback
 from enum import Enum
+import asyncio
 
 import zarr
 import numpy as np
@@ -11,8 +12,8 @@ import uvicorn
 
 from typing import Optional, List, Any, Tuple
 
-from fastapi import FastAPI, HTTPException, Body
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Body, Response, Request
+from fastapi.responses import HTMLResponse, ORJSONResponse
 from msgpack_asgi import MessagePackMiddleware
 from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
@@ -38,14 +39,6 @@ _Wnat a binary endpoint?_ I am considering either npz or raw C-style arrays.
 Questions? Feel free to bug Eric on FAFB or FlyWire slack.
 """
 
-# Use orjson for NaN -> null and numpy support
-# Source: https://github.com/tiangolo/fastapi/issues/459
-class ORJSONResponse(JSONResponse):
-    media_type = "application/json"
-
-    def render(self, content: Any) -> bytes:
-        return orjson.dumps(content)
-
 app = FastAPI(default_response_class=ORJSONResponse,
                 title="Transformation Service",
                 description=api_description,
@@ -53,9 +46,6 @@ app = FastAPI(default_response_class=ORJSONResponse,
 
 # MessagePackMiddleware does not currently support large request (`more_body`) so we'll do our own...
 app.add_middleware(MessagePackMiddleware)
-
-
-
 
 
 open_n5_mip = {}
@@ -213,6 +203,60 @@ def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
         }
 
     return results
+
+
+
+class BinaryFormats(str, Enum):
+    array_3xN = "array_float_3xN"
+    array_Nx3 = "array_float_Nx3"
+
+@app.post('/dataset/{dataset}/s/{scale}/values_binary/format/{format}',
+            response_model=None,
+            responses={ 200: {"content": {"application/octet-stream": {}},
+                        "description": "Binary encoding of output array."}}
+            )
+def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
+    """Raw binary version of the API. Data will consist of 1 uint 32.
+       Currently acceptable formats consist of a single uint32 with the number of records, 
+       All values must be little-endian floating point nubers.
+
+       The response will _only_ contain `dx` and `dy`, stored as either 2xN or Nx2 (depending on format chosen)
+    """
+
+    body = asyncio.run(request.body())
+    print(body)
+    points = len(body) // (3 * 4)  # 3 x float
+    if format == BinaryFormats.array_3xN:
+        locs = np.frombuffer(body, dtype=np.float32).reshape(3,points).swapaxes(0,1)
+    elif format == BinaryFormats.array_Nx3:
+        locs = np.frombuffer(body, dtype=np.float32).reshape(points,3)
+    else:
+        raise Exception("Unexpected format: {}".format(format))
+
+    print(locs)
+    if locs.shape[0] > config.MaxLocations:
+        raise HTTPException(status_code=400,
+            detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
+
+    # scale & adjust locations
+    transformed = map_points(dataset.value, scale, locs)
+
+    # Set results
+    results = {
+            'x': transformed['x'].tolist(),
+            'y': transformed['y'].tolist(),
+            'z': transformed['z'].tolist(),
+            'dx': transformed['dx'].tolist(),
+            'dy': transformed['dy'].tolist()
+        }
+
+    data = np.zeros(dtype=np.float32, shape=(2,points), order="C")
+    data[0,:] = transformed['dx']
+    data[1,:] = transformed['dy']
+    if format == BinaryFormats.array_Nx3:
+        data = data.swapaxes(0,1)
+
+    return Response(content=data.tobytes(), media_type="application/octet-stream")
 
 
 def map_points(dataset, scale, locs):
