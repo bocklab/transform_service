@@ -215,7 +215,7 @@ class BinaryFormats(str, Enum):
             responses={ 200: {"content": {"application/octet-stream": {}},
                         "description": "Binary encoding of output array."}}
             )
-def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
+async def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
     """Raw binary version of the API. Data will consist of 1 uint 32.
        Currently acceptable formats consist of a single uint32 with the number of records, 
        All values must be little-endian floating point nubers.
@@ -223,8 +223,7 @@ def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, reque
        The response will _only_ contain `dx` and `dy`, stored as either 2xN or Nx2 (depending on format chosen)
     """
 
-    body = asyncio.run(request.body())
-    print(body)
+    body = await request.body()
     points = len(body) // (3 * 4)  # 3 x float
     if format == BinaryFormats.array_3xN:
         locs = np.frombuffer(body, dtype=np.float32).reshape(3,points).swapaxes(0,1)
@@ -233,7 +232,6 @@ def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, reque
     else:
         raise Exception("Unexpected format: {}".format(format))
 
-    print(locs)
     if locs.shape[0] > config.MaxLocations:
         raise HTTPException(status_code=400,
             detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
