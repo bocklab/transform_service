@@ -28,8 +28,8 @@ DATASOURCES = {
         'scales' : [4],
         'voxel_size' : [4,4,40]
     },
-    'fanc_v3_to_v4': {
-        'description' : 'Mapping from FANCv3 to FANCv4',
+    'fanc_v4_to_v3': {
+        'description' : 'Mapping from FANCv4 to FANCv3',
         'type' : 'zarr-nested',
         'path' : '/data/fields/fanc/field.zarr',
         'scales' : [2],
