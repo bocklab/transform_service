@@ -52,7 +52,7 @@ app = FastAPI(default_response_class=ORJSONResponse,
                 debug=True)
 
 # MessagePackMiddleware does not currently support large request (`more_body`) so we'll do our own...
-# app.add_middleware(MessagePackMiddleware)
+app.add_middleware(MessagePackMiddleware)
 
 
 
