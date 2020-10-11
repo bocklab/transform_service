@@ -24,3 +24,8 @@ def test_binary_requests():
 
     np.testing.assert_equal(r1, r2.swapaxes(0,1))
 
+def test_out_of_range():
+    q1 = np.array([[-1,1,1], [5000,5000,5000]], dtype=np.single, order="C", copy=True)
+    r1 = np.frombuffer(client.post("/dataset/test/s/7/values_binary/format/array_float_Nx3", data=q1.tobytes()).content, dtype=np.float32).reshape(q1.shape[0],2)
+    
+    np.testing.assert_equal(r1, np.full((2,2), np.NaN))
