@@ -1,12 +1,12 @@
-numpy==1.19.0
+numpy==1.19.2
 zarr==2.4.0
 pandas==1.0.5
 simplejson==3.17.2
 msgpack==1.0.0
-fastapi==0.61.0
-uvicorn==0.11.8
+fastapi==0.61.1
+uvicorn[standard]==0.11.8
 msgpack-asgi==1.0.0
-orjson==3.3.1
+orjson==3.4.0
 Jinja2==2.11.2
-blosc==1.9.1
+blosc==1.9.2
 zstd==1.4.5.1
