@@ -271,11 +271,10 @@ def map_points(dataset, scale, locs):
     query_points[:,1] = (locs[:,1] // 2**scale) - voxel_offset[1]
     query_points[:,2] = (locs[:,2] - voxel_offset[2])
 
-    bad_points = ((query_points <= [0,0,0]) | (query_points >= np.array(n5.shape)[0:3])).all(axis=1)
+    bad_points = ((query_points < [0,0,0]) | (query_points >= np.array(n5.shape)[0:3])).any(axis=1)
     query_points[bad_points] = np.NaN
     if bad_points.all():
         # No valid points. The binning code will otherwise fail.
-        # Make a fake field of NaN
         field = np.full((query_points.shape[0], 2), np.NaN)
     else:
         field = process.get_multiple_ids(query_points, n5,
