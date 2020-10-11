@@ -118,7 +118,7 @@ class PointResponse(BaseModel):
     dy: float
 
 @app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse)
-def point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
+async def point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
     """Query a single point."""
 
     locs = np.asarray([[x,y,z]])
@@ -140,7 +140,7 @@ class PointList(BaseModel):
     locations : List[Tuple[float, float, float]]
 
 @app.post('/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse])
-def values(dataset: DataSetName, scale: int, data : PointList):
+async def values(dataset: DataSetName, scale: int, data : PointList):
     """Return segment IDs at given locations."""
 
     locs = np.array(data.locations).astype(np.float32)
@@ -180,7 +180,7 @@ class ColumnPointListResponse(BaseModel):
     dy: List[float]
 
 @app.post('/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse)
-def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
+async def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return segment IDs at given locations."""
 
     # Get a Nx3 array of points
