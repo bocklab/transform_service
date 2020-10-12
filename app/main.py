@@ -34,8 +34,6 @@ Error values are returned as `null`, not `NaN` as done with the previous iterati
 
 _Note on using [msgpack](https://msgpack.org/)_: Use `Content-type: application/x-msgpack` and `Accept: application/x-msgpack` to use msgpack instead of JSON. There is currently data size limit of *64KB* when using msgpack. I am currently looking for a workaround.
 
-_Wnat a binary endpoint?_ I am considering either npz or raw C-style arrays.
-
 Questions? Feel free to bug Eric on FAFB or FlyWire slack.
 """
 
