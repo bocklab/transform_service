@@ -12,3 +12,4 @@ blosc==1.9.2
 zstd==1.4.5.1
 pytest==6.1.1
 requests==2.24.0
+dask==2.30.0

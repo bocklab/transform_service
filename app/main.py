@@ -20,6 +20,7 @@ from starlette.responses import JSONResponse
 
 from . import config
 from . import process
+from .query import map_points, query_points
 
 api_description = """
 This service will take a set of points and will transform them using the specified field.
@@ -44,37 +45,6 @@ app = FastAPI(default_response_class=ORJSONResponse,
 
 # MessagePackMiddleware does not currently support large request (`more_body`) so we'll do our own...
 app.add_middleware(MessagePackMiddleware)
-
-
-open_n5_mip = {}
-
-def get_datasource(dataset_name, mip):
-    # Attempt to open & store handle to n5 groups
-    key = (dataset_name, mip)
-    if key in open_n5_mip:
-        return open_n5_mip[key]
-
-    if dataset_name not in config.DATASOURCES:
-        raise HTTPException(status_code=400, detail="Dataset {} not found".format(dataset_name))
-    
-    datainfo = config.DATASOURCES[dataset_name]
-        
-    if mip not in datainfo['scales']:
-        raise HTTPException(status_code=400, detail="Scale {} not found".format(mip))
-
-    if datainfo['type'] == 'n5':
-        zroot = zarr.open(datainfo['path'], mode='r')
-    elif datainfo['type'] == 'zarr':
-        zroot = zarr.open(datainfo['path'], mode='r')
-    elif datainfo['type'] == 'zarr-nested':
-        store = zarr.NestedDirectoryStore(datainfo['path'])
-        zroot = zarr.group(store=store)
-    else:
-        raise HTTPException(status_code=400, detail="Datasource type '{}' not found".format(datainfo['type'] ))
-        
-    s = zroot["s%d" % mip]
-    open_n5_mip[key] = s
-    return s
 
 #
 # Main page of the service
@@ -255,45 +225,35 @@ async def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats,
     return Response(content=data.tobytes(), media_type="application/octet-stream")
 
 
-def map_points(dataset, scale, locs):
-    """Do the work for mapping data.
-       Input:  [n,3] numpy array representing n (x,y,z) points
-       Output: [n,5] numpy array representing n (new_x, new_y, new_z, new_dx, new_dy)
+@app.post('/query/dataset/{dataset}/s/{scale}/values_binary/format/{format}',
+            response_model=None,
+            responses={ 200: {"content": {"application/octet-stream": {}},
+                        "description": "Binary encoding of output array."}}
+            )
+async def query_values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
+    """Query a dataset for values at a point(s)
+
+       The response will _only_ contain the value(s) at the coordinates requested.
+       The datatype returned will be of the type referenced in */info/*.
     """
-    n5 = get_datasource(dataset, scale)
-    blocksize = np.asarray(n5.chunks[:3]) * 2
-    voxel_offset = n5.attrs['voxel_offset']
 
-    query_points = np.empty_like(locs)
-    query_points[:,0] = (locs[:,0] // 2**scale) - voxel_offset[0]
-    query_points[:,1] = (locs[:,1] // 2**scale) - voxel_offset[1]
-    query_points[:,2] = (locs[:,2] - voxel_offset[2])
-
-    bad_points = ((query_points < [0,0,0]) | (query_points >= np.array(n5.shape)[0:3])).any(axis=1)
-    query_points[bad_points] = np.NaN
-    if bad_points.all():
-        # No valid points. The binning code will otherwise fail.
-        field = np.full((query_points.shape[0], 2), np.NaN)
+    body = await request.body()
+    points = len(body) // (3 * 4)  # 3 x float
+    if format == BinaryFormats.array_3xN:
+        locs = np.frombuffer(body, dtype=np.float32).reshape(3,points).swapaxes(0,1)
+    elif format == BinaryFormats.array_Nx3:
+        locs = np.frombuffer(body, dtype=np.float32).reshape(points,3)
     else:
-        field = process.get_multiple_ids(query_points, n5,
-                                        max_workers=config.MaxWorkers,
-                                        blocksize=blocksize)
+        raise Exception("Unexpected format: {}".format(format))
 
-    results = np.zeros(locs.shape[0], dtype=[('x', '<f4'), ('y', '<f4'), ('z', '<f4'), ('dx', '<f4'), ('dy', '<f4')])
+    if locs.shape[0] > config.MaxLocations:
+        raise HTTPException(status_code=400,
+            detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
 
-    # From Tommy Macrina:
-    #   We store the vectors as fixed-point int16 with two bits for the decimal.
-    #   Even if a vector is stored at a different MIP level (e.g. these are stored at MIP2),
-    #   the vectors represent MIP0 displacements, so there's no further scaling required.
+    transformed = query_points(dataset.value, scale, locs)
 
-    results['dx'] = field[:,1] / 4.0
-    results['dy'] = field[:,0] / 4.0
-    results['x'] = locs[:,0] + results['dx']
-    results['y'] = locs[:,1] + results['dy']
-    results['z'] = locs[:,2]
+    if format == BinaryFormats.array_Nx3:
+        data = data.swapaxes(0,1)
 
-    return results
+    return Response(content=data.tobytes(), media_type="application/octet-stream")
 
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)

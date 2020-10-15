@@ -29,3 +29,12 @@ def test_out_of_range():
     r1 = np.frombuffer(client.post("/dataset/test/s/7/values_binary/format/array_float_Nx3", data=q1.tobytes()).content, dtype=np.float32).reshape(q1.shape[0],2)
     
     np.testing.assert_equal(r1, np.full((2,2), np.NaN))
+
+
+
+def test_query_ffn1():
+    q1 = np.array([[87110, 63790, 5436]], dtype=np.single, order="C", copy=True)
+    print(client.post("/query/dataset/fafb-ffn1-20200412/s/0/values_binary/format/array_float_Nx3", data=q1.tobytes()))
+    r1 = np.frombuffer(client.post("/query/fafb-ffn1-20200412/test/s/0/values_binary/format/array_float_Nx3", data=q1.tobytes()).content, dtype=np.uint64) #.reshape(q1.shape[0],1)
+    # 8678640431
+    np.testing.assert_equal(r1, np.full((2,2), np.NaN)) 
