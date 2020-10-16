@@ -19,7 +19,7 @@ DATASOURCES = {
         'width' : 2
     },
     'flywire_v1' : {
-        'description' : 'Mapping from FAFBv14 to FlyWire (v14.1)',
+        'description' : 'Mapping from FlyWire (v14.1) to FAFBv14',
         'type' : 'zarr-nested',
         'path' : '/data/fields/flywire_v1/field.zarr',
         'scales' : [2, 3, 4, 5, 6, 7],
@@ -29,7 +29,7 @@ DATASOURCES = {
         'width' : 2
     },
     'flywire_v1_inverse' : {
-        'description' : 'Mapping from FlyWire (v14.1) to FAFBv14',
+        'description' : 'Mapping from FAFBv14 to FlyWire (v14.1)',
         'type' : 'zarr-nested',
         'path' : '/data/fields/v0_inverse/field.zarr',
         'scales' : [4],
