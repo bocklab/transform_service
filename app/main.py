@@ -225,6 +225,7 @@ async def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats,
     return Response(content=data.tobytes(), media_type="application/octet-stream")
 
 
+
 @app.post('/query/dataset/{dataset}/s/{scale}/values_binary/format/{format}',
             response_model=None,
             responses={ 200: {"content": {"application/octet-stream": {}},
@@ -250,7 +251,7 @@ async def query_values_binary(dataset: DataSetName, scale: int, format: BinaryFo
         raise HTTPException(status_code=400,
             detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
 
-    transformed = query_points(dataset.value, scale, locs)
+    data = query_points(dataset.value, scale, locs)
 
     if format == BinaryFormats.array_Nx3:
         data = data.swapaxes(0,1)

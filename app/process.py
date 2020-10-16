@@ -1,6 +1,11 @@
-import multiprocessing as mp
+from pathos.multiprocessing import ProcessPool
+
 import numpy as np
 import pandas as pd
+
+#
+# Code based on https://github.com/flyconnectome/CloudVolumeServer/blob/master/process.py
+#
 
 
 def _get_ids(vol, bl, co):
@@ -44,7 +49,7 @@ def _get_ids(vol, bl, co):
     return co_id
 
 
-def get_multiple_ids(x, vol, max_workers=mp.cpu_count() - 5, blocksize=np.array([512, 512, 32])):
+def get_multiple_ids(x, vol, max_workers=4, blocksize=np.array([512, 512, 32])):
     """Return multiple segment IDs using cloudvolume.
 
     Parameters
@@ -85,9 +90,11 @@ def get_multiple_ids(x, vol, max_workers=mp.cpu_count() - 5, blocksize=np.array(
     blocked = {k: cbin.index[v] for k,v in blocked.items()}
 
     # Start process pool (do not use max cpu count -> appears to be a bottle neck)
-    with mp.Pool(processes=max_workers) as pool:
-        futures = []
+
+    with ProcessPool(nodes=max_workers) as pool:
         seg_ix = []
+        ranges = []
+        cos = []
         # Iterate over all blocks
         for bl, co_ix in blocked.items():
             # Get this block's (i.e. the bin's) indices
@@ -106,20 +113,22 @@ def get_multiple_ids(x, vol, max_workers=mp.cpu_count() - 5, blocksize=np.array(
             # in this iteration
             seg_ix.append(co_ix)
 
-            # Run the query
-            futures.append(pool.apply_async(_get_ids,
-                                            args=[vol,
-                                                  [l, r, t, b, z1, z2],
-                                                  co]))
+            #  Add to list of coordinates
+            cos.append(co)
 
-        # Make sure all processes are complete
-        seg_ids = np.vstack([f.get() for f in futures])
+            # Add to list of indices
+            ranges.append( [l, r, t, b, z1, z2])
+
+        result = pool.map(_get_ids, [vol] * len(seg_ix), ranges, cos)
+        seg_ids = np.vstack(result)
+
+        pool.clear()
 
     # Turn list of list of indices into a flat array
     seg_ix = np.hstack(seg_ix)
 
-    # Generate placeholder of NaNs
-    ordered = np.full((x.shape[0], 2), np.nan)
+    # Generate placeholder of NaNs. Get data width from the returned data.
+    ordered = np.full((x.shape[0], seg_ids.shape[1]), np.nan)
 
     # Populate with segment IDs
     ordered[seg_ix] = seg_ids
