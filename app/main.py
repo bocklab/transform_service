@@ -86,7 +86,7 @@ class PointResponse(BaseModel):
     dy: float
 
 @app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse)
-async def point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
+def point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
     """Query a single point."""
 
     locs = np.asarray([[x,y,z]])
@@ -108,7 +108,7 @@ class PointList(BaseModel):
     locations : List[Tuple[float, float, float]]
 
 @app.post('/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse])
-async def values(dataset: DataSetName, scale: int, data : PointList):
+def values(dataset: DataSetName, scale: int, data : PointList):
     """Return dx, dy and new coordinates for an input set of locations."""
 
     locs = np.array(data.locations).astype(np.float32)
@@ -148,7 +148,7 @@ class ColumnPointListResponse(BaseModel):
     dy: List[float]
 
 @app.post('/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse)
-async def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
+def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return dx, dy and new coordinates for an input set of locations."""
 
     # Get a Nx3 array of points
@@ -176,7 +176,7 @@ class QueryColumnPointListResponse(BaseModel):
     values: List[List[float]]
 
 @app.post('/query/dataset/{dataset}/s/{scale}/values_array', response_model=QueryColumnPointListResponse)
-async def query_values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
+def query_values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return segment IDs at given locations.
        One 
     """
@@ -203,12 +203,12 @@ class ColumnPointListStringResponse(BaseModel):
     values: List[List[str]]
 
 @app.post('/query/dataset/{dataset}/s/{scale}/values_array_string_response', response_model=ColumnPointListStringResponse)
-async def query_values_array_string(dataset: DataSetName, scale: int, locs : ColumnPointList):
+def query_values_array_string(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return segment IDs at given locations.
        Like *query_values_array*, but result array contains strings for easier parsing in R.
     """
 
-    results = await query_values_array(dataset, scale, locs)
+    results = query_values_array(dataset, scale, locs)
 
     results = {
         'values' : [[str(j) for j in i] for i in results['values']]
@@ -225,7 +225,7 @@ class BinaryFormats(str, Enum):
             responses={ 200: {"content": {"application/octet-stream": {}},
                         "description": "Binary encoding of output array."}}
             )
-async def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
+def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
     """Raw binary version of the API. Data will consist of 1 uint 32.
        Currently acceptable formats consist of a single uint32 with the number of records, 
        All values must be little-endian floating point nubers.
@@ -233,7 +233,7 @@ async def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats,
        The response will _only_ contain `dx` and `dy`, stored as either 2xN or Nx2 (depending on format chosen)
     """
 
-    body = await request.body()
+    body = asyncio.run(request.body())
     points = len(body) // (3 * 4)  # 3 x float
     if format == BinaryFormats.array_3xN:
         locs = np.frombuffer(body, dtype=np.float32).reshape(3,points).swapaxes(0,1)
@@ -273,14 +273,14 @@ async def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats,
             responses={ 200: {"content": {"application/octet-stream": {}},
                         "description": "Binary encoding of output array."}}
             )
-async def query_values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
+def query_values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
     """Query a dataset for values at a point(s)
 
        The response will _only_ contain the value(s) at the coordinates requested.
        The datatype returned will be of the type referenced in */info/*.
     """
 
-    body = await request.body()
+    body = asyncio.run(request.body())
     points = len(body) // (3 * 4)  # 3 x float
     if format == BinaryFormats.array_3xN:
         locs = np.frombuffer(body, dtype=np.float32).reshape(3,points).swapaxes(0,1)
