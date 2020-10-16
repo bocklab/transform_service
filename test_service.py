@@ -35,7 +35,7 @@ def test_out_of_range():
     np.testing.assert_equal(r1, np.full((2,2), np.NaN))
 
 
-def test_query_ffn1():
+def test_query_ffn1_binary():
     # TODO: Create a Google datasource with a fixture
     DATASOURCES['fafb-ffn1-20200412']['url'] = 'https://storage.googleapis.com/fafb-ffn1-20200412/segmentation'
 
@@ -47,3 +47,19 @@ def test_query_ffn1():
     r1 = np.frombuffer(response.content, dtype=np.uint64).reshape(q1.shape[0],1)
     # 8678640431
     np.testing.assert_equal(r1, np.asarray([[8678640431], [0], [2938732695]]))
+
+
+def test_query_ffn1_values_string():
+    # TODO: Create a Google datasource with a fixture
+    DATASOURCES['fafb-ffn1-20200412']['url'] = 'https://storage.googleapis.com/fafb-ffn1-20200412/segmentation'
+    
+    q1 = {
+            'x' : [87110, 0, 106110],
+            'y' : [63790, 0, 66106],
+            'z' : [5436, 0, 1968]
+        }
+
+    response = client.post("/query/dataset/fafb-ffn1-20200412/s/0/values_array_string_response", json=q1)
+    assert response.status_code == 200
+
+    assert response.json() == {'values' : [["8678640431", "0", "2938732695"]]}

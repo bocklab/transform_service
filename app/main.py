@@ -109,7 +109,7 @@ class PointList(BaseModel):
 
 @app.post('/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse])
 async def values(dataset: DataSetName, scale: int, data : PointList):
-    """Return segment IDs at given locations."""
+    """Return dx, dy and new coordinates for an input set of locations."""
 
     locs = np.array(data.locations).astype(np.float32)
 
@@ -149,7 +149,7 @@ class ColumnPointListResponse(BaseModel):
 
 @app.post('/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse)
 async def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
-    """Return segment IDs at given locations."""
+    """Return dx, dy and new coordinates for an input set of locations."""
 
     # Get a Nx3 array of points
     locs = np.array([locs.x, locs.y, locs.z]).astype(np.float32).swapaxes(0,1)
@@ -172,7 +172,49 @@ async def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList)
 
     return results
 
+class QueryColumnPointListResponse(BaseModel):
+    values: List[List[float]]
 
+@app.post('/query/dataset/{dataset}/s/{scale}/values_array', response_model=QueryColumnPointListResponse)
+async def query_values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
+    """Return segment IDs at given locations.
+       One 
+    """
+
+    # Get a Nx3 array of points
+    locs = np.array([locs.x, locs.y, locs.z]).astype(np.float32).swapaxes(0,1)
+
+    if locs.shape[0] > config.MaxLocations:
+        raise HTTPException(status_code=400,
+            detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
+
+    data = query_points(dataset.value, scale, locs)
+    # Nx1 to 1xN
+    data = data.swapaxes(0,1)
+
+    # Set results
+    results = {
+        'values' : data.tolist()
+    }
+
+    return results   
+
+class ColumnPointListStringResponse(BaseModel):
+    values: List[List[str]]
+
+@app.post('/query/dataset/{dataset}/s/{scale}/values_array_string_response', response_model=ColumnPointListStringResponse)
+async def query_values_array_string(dataset: DataSetName, scale: int, locs : ColumnPointList):
+    """Return segment IDs at given locations.
+       Like *query_values_array*, but result array contains strings for easier parsing in R.
+    """
+
+    results = await query_values_array(dataset, scale, locs)
+
+    results = {
+        'values' : [[str(j) for j in i] for i in results['values']]
+    }
+
+    return results
 
 class BinaryFormats(str, Enum):
     array_3xN = "array_float_3xN"
