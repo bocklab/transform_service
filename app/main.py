@@ -12,6 +12,7 @@ import uvicorn
 
 from typing import Optional, List, Any, Tuple
 
+from starlette.concurrency import run_in_threadpool 
 from fastapi import FastAPI, HTTPException, Body, Response, Request
 from fastapi.responses import HTMLResponse, ORJSONResponse
 from msgpack_asgi import MessagePackMiddleware
@@ -86,12 +87,12 @@ class PointResponse(BaseModel):
     dy: float
 
 @app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse)
-def point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
+async def point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
     """Query a single point."""
 
     locs = np.asarray([[x,y,z]])
 
-    transformed = map_points(dataset.value, scale, locs)
+    transformed = await run_in_threadpool(map_points, dataset.value, scale, locs)
 
     result = {
          'x': transformed['x'].tolist()[0],
@@ -108,7 +109,7 @@ class PointList(BaseModel):
     locations : List[Tuple[float, float, float]]
 
 @app.post('/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse])
-def values(dataset: DataSetName, scale: int, data : PointList):
+async def values(dataset: DataSetName, scale: int, data : PointList):
     """Return dx, dy and new coordinates for an input set of locations."""
 
     locs = np.array(data.locations).astype(np.float32)
@@ -118,7 +119,7 @@ def values(dataset: DataSetName, scale: int, data : PointList):
             detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
 
     # scale & adjust locations
-    transformed = map_points(dataset.value, scale, locs)
+    transformed = await run_in_threadpool(map_points, dataset.value, scale, locs)
 
     # Apply results
     results = []
@@ -148,7 +149,7 @@ class ColumnPointListResponse(BaseModel):
     dy: List[float]
 
 @app.post('/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse)
-def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
+async def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return dx, dy and new coordinates for an input set of locations."""
 
     # Get a Nx3 array of points
@@ -159,7 +160,7 @@ def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
             detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
 
     # scale & adjust locations
-    transformed = map_points(dataset.value, scale, locs)
+    transformed = await run_in_threadpool(map_points, dataset.value, scale, locs)
 
     # Set results
     results = {
@@ -176,7 +177,7 @@ class QueryColumnPointListResponse(BaseModel):
     values: List[List[float]]
 
 @app.post('/query/dataset/{dataset}/s/{scale}/values_array', response_model=QueryColumnPointListResponse)
-def query_values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
+async def query_values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return segment IDs at given locations.
        One 
     """
@@ -188,7 +189,7 @@ def query_values_array(dataset: DataSetName, scale: int, locs : ColumnPointList)
         raise HTTPException(status_code=400,
             detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
 
-    data = query_points(dataset.value, scale, locs)
+    data = await run_in_threadpool(query_points, dataset.value, scale, locs)
     # Nx1 to 1xN
     data = data.swapaxes(0,1)
 
@@ -203,12 +204,12 @@ class ColumnPointListStringResponse(BaseModel):
     values: List[List[str]]
 
 @app.post('/query/dataset/{dataset}/s/{scale}/values_array_string_response', response_model=ColumnPointListStringResponse)
-def query_values_array_string(dataset: DataSetName, scale: int, locs : ColumnPointList):
+async def query_values_array_string(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return segment IDs at given locations.
        Like *query_values_array*, but result array contains strings for easier parsing in R.
     """
 
-    results = query_values_array(dataset, scale, locs)
+    results = await query_values_array(dataset, scale, locs)
 
     results = {
         'values' : [[str(j) for j in i] for i in results['values']]
@@ -225,7 +226,7 @@ class BinaryFormats(str, Enum):
             responses={ 200: {"content": {"application/octet-stream": {}},
                         "description": "Binary encoding of output array."}}
             )
-def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
+async def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
     """Raw binary version of the API. Data will consist of 1 uint 32.
        Currently acceptable formats consist of a single uint32 with the number of records, 
        All values must be little-endian floating point nubers.
@@ -233,7 +234,7 @@ def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, reque
        The response will _only_ contain `dx` and `dy`, stored as either 2xN or Nx2 (depending on format chosen)
     """
 
-    body = asyncio.run(request.body())
+    body = await request.body()
     points = len(body) // (3 * 4)  # 3 x float
     if format == BinaryFormats.array_3xN:
         locs = np.frombuffer(body, dtype=np.float32).reshape(3,points).swapaxes(0,1)
@@ -247,7 +248,7 @@ def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, reque
             detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
 
     # scale & adjust locations
-    transformed = map_points(dataset.value, scale, locs)
+    transformed = await run_in_threadpool(map_points, dataset.value, scale, locs)
 
     # Set results
     results = {
@@ -273,14 +274,14 @@ def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, reque
             responses={ 200: {"content": {"application/octet-stream": {}},
                         "description": "Binary encoding of output array."}}
             )
-def query_values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
+async def query_values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
     """Query a dataset for values at a point(s)
 
        The response will _only_ contain the value(s) at the coordinates requested.
        The datatype returned will be of the type referenced in */info/*.
     """
 
-    body = asyncio.run(request.body())
+    body = await request.body()
     points = len(body) // (3 * 4)  # 3 x float
     if format == BinaryFormats.array_3xN:
         locs = np.frombuffer(body, dtype=np.float32).reshape(3,points).swapaxes(0,1)
@@ -293,7 +294,7 @@ def query_values_binary(dataset: DataSetName, scale: int, format: BinaryFormats,
         raise HTTPException(status_code=400,
             detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
 
-    data = query_points(dataset.value, scale, locs)
+    data = await run_in_threadpool(query_points, dataset.value, scale, locs)
 
     if format == BinaryFormats.array_Nx3:
         data = data.swapaxes(0,1)
