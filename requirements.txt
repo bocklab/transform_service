@@ -13,3 +13,4 @@ zstd==1.4.5.1
 pytest==6.1.1
 requests==2.24.0
 pathos==0.2.6
+cloud-volume==3.1.0
