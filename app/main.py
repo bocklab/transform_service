@@ -52,11 +52,12 @@ app.add_middleware(MessagePackMiddleware)
 #
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def root():
-    return """<html>
-<head><title>Transformation Service</title></head>
+    return """<!DOCTYPE html>
+<html>
+<head><title>Transformation &amp; Query Service</title></head>
 <body>
-<h1>Transformation Service</h1>
-Please see the <a href="docs/">API documentation</a> for usage info.
+<h1>Transformation &amp; Query Service</h1>
+See the <a href="docs/">API documentation</a> for usage info.
 </body>
 </html>"""
 
@@ -87,7 +88,7 @@ class PointResponse(BaseModel):
     dy: float
 
 @app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse)
-async def point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
+async def transform_point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
     """Query a single point."""
 
     locs = np.asarray([[x,y,z]])
@@ -109,7 +110,7 @@ class PointList(BaseModel):
     locations : List[Tuple[float, float, float]]
 
 @app.post('/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse])
-async def values(dataset: DataSetName, scale: int, data : PointList):
+async def transform_values(dataset: DataSetName, scale: int, data : PointList):
     """Return dx, dy and new coordinates for an input set of locations."""
 
     locs = np.array(data.locations).astype(np.float32)
@@ -149,7 +150,7 @@ class ColumnPointListResponse(BaseModel):
     dy: List[float]
 
 @app.post('/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse)
-async def values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
+async def transform_values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return dx, dy and new coordinates for an input set of locations."""
 
     # Get a Nx3 array of points
@@ -226,7 +227,7 @@ class BinaryFormats(str, Enum):
             responses={ 200: {"content": {"application/octet-stream": {}},
                         "description": "Binary encoding of output array."}}
             )
-async def values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
+async def transform_values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
     """Raw binary version of the API. Data will consist of 1 uint 32.
        Currently acceptable formats consist of a single uint32 with the number of records, 
        All values must be little-endian floating point nubers.
