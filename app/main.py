@@ -137,6 +137,26 @@ async def transform_values(dataset: DataSetName, scale: int, data : PointList):
     return results
 
 
+@app.post('/query/dataset/{dataset}/s/{scale}/cloud_volume_server', response_model=List[str])
+async def query_values_cloud_volume_server(dataset: DataSetName, scale: int, data: PointList):
+    """Return dx, dy and new coordinates for an input set of locations.
+    Implements the [CloudVolumeServer](https://github.com/flyconnectome/CloudVolumeServer) API.
+    """
+
+    locs = np.array(data.locations).astype(np.float32)
+
+    if locs.shape[0] > config.MaxLocations:
+        raise HTTPException(status_code=400,
+            detail="Max number of locations ({}) exceeded".format(config.MaxLocations))
+
+    data = await run_in_threadpool(query_points, dataset.value, scale, locs)
+    data = data.flatten()
+
+    return data.tolist()
+
+
+
+
 class ColumnPointList(BaseModel):
     x: List[float]
     y: List[float]

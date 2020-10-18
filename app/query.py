@@ -20,7 +20,6 @@ def query_points(dataset, scale, locs):
         # Is there a better way to see if it's cloudvolunme?
         blocksize = n5.chunk_size * config.CHUNK_MULTIPLIER
         voxel_offset = [0, 0, 0]
-        print(n5.chunk_size, blocksize)
     else:
         # Some data format not yet supported!
         blocksize = [512, 512, 8]
