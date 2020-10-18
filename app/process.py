@@ -1,4 +1,4 @@
-from pathos.multiprocessing import ProcessPool
+from pathos.threading import ThreadPool
 
 import numpy as np
 import pandas as pd
@@ -91,7 +91,7 @@ def get_multiple_ids(x, vol, max_workers=4, blocksize=np.array([512, 512, 32])):
 
     # Start process pool (do not use max cpu count -> appears to be a bottle neck)
 
-    with ProcessPool(nodes=max_workers) as pool:
+    with ThreadPool(nodes=max_workers) as pool:
         seg_ix = []
         ranges = []
         cos = []
