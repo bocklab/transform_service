@@ -155,8 +155,6 @@ async def query_values_cloud_volume_server(dataset: DataSetName, scale: int, dat
     return data.tolist()
 
 
-
-
 class ColumnPointList(BaseModel):
     x: List[float]
     y: List[float]

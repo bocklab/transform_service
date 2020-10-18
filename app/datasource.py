@@ -21,7 +21,7 @@ def get_datastore(dataset_name, mip):
         raise HTTPException(status_code=400, detail="Scale {} not found".format(mip))
 
     if datainfo['type'] == 'cloudvolume':
-        s = CloudVolume(datainfo['url'], mip=mip, bounded=False, fill_missing=True)
+        s = CloudVolume(datainfo['url'], mip=mip, bounded=False, fill_missing=True, cache=False)
     else:
         if datainfo['type'] == 'n5':
             zroot = zarr.open(datainfo['path'], mode='r')
