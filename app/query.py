@@ -14,10 +14,15 @@ def query_points(dataset, scale, locs):
     n5 = datasource.get_datastore(dataset, scale)
     
     if isinstance(n5, zarr.core.Array):
-        blocksize = np.asarray(n5.chunks[:3]) * 2
+        blocksize = np.asarray(n5.chunks[:3]) * config.CHUNK_MULTIPLIER
         voxel_offset = n5.attrs['voxel_offset']
+    elif info['type'] == 'cloudvolume':
+        # Is there a better way to see if it's cloudvolunme?
+        blocksize = n5.chunk_size * config.CHUNK_MULTIPLIER
+        voxel_offset = [0, 0, 0]
+        print(n5.chunk_size, blocksize)
     else:
-        # CloudVolume
+        # Some data format not yet supported!
         blocksize = [512, 512, 8]
         voxel_offset = [0, 0, 0]
 

@@ -30,7 +30,6 @@ def get_datastore(dataset_name, mip):
         elif datainfo['type'] == 'zarr-nested':
             store = zarr.NestedDirectoryStore(datainfo['path'])
             zroot = zarr.group(store=store)
-
         else:
             raise HTTPException(status_code=400, detail="Datasource type '{}' not found".format(datainfo['type'] ))
             

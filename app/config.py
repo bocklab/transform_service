@@ -2,10 +2,15 @@
 import os
 
 # Number of cores used to parallel fetching of locations
-MaxWorkers = os.cpu_count() // 2
+MaxWorkers = 16
 
 # Max number of locations per query
 MaxLocations = 10e9
+
+# Number of chunks for each worker to read
+# Each chunk dimension is multiplied by this.
+# e.g. 4 will lead to 64 (4*4*4) chunks per worker
+CHUNK_MULTIPLIER = 2
 
 DATASOURCES = {
     'test' : {
@@ -50,6 +55,7 @@ DATASOURCES = {
     },
     'fafb-ffn1-20200412' : {
         'description' : 'fafb-ffn1-20200412 segmentation',
+        #'url' : 'https://storage.googleapis.com/fafb-ffn1-20200412/segmentation',
         'url' : 'precomputed://file:///data/fields/fafb-ffn1-20200412/segmentation',
         'type' : 'cloudvolume',
         'scales' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],

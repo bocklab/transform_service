@@ -42,10 +42,8 @@ def test_query_ffn1_binary():
     q1 = np.array([[87110, 63790, 5436], [0,0,0], [106110, 66106, 1968]], dtype=np.single, order="C", copy=True)
     response = client.post("/query/dataset/fafb-ffn1-20200412/s/0/values_binary/format/array_float_Nx3", data=q1.tobytes())
     assert response.status_code == 200
-
-    print(len(response.content))
+    
     r1 = np.frombuffer(response.content, dtype=np.uint64).reshape(q1.shape[0],1)
-    # 8678640431
     np.testing.assert_equal(r1, np.asarray([[8678640431], [0], [2938732695]]))
 
 
