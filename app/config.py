@@ -16,12 +16,18 @@ DATASOURCES = {
     'test' : {
         'description' : 'Test volume',
         'type' : 'zarr',
-        'path' : 'test.zarr',
         'scales' : [7],
         'voxel_size' : [4,4,40],
         'services' : ['transform'],
         'dtype' : 'float32',
-        'width' : 2
+        'width' : 2,
+        'tsinfo' : {
+            'driver' : 'zarr',
+            'kvstore': {
+                'driver': 'file',
+                'path': 'test.zarr',
+            },
+        }   
     },
     'flywire_v1' : {
         'description' : 'Mapping from FlyWire (v14.1) to FAFBv14',
@@ -56,11 +62,29 @@ DATASOURCES = {
     'fafb-ffn1-20200412' : {
         'description' : 'fafb-ffn1-20200412 segmentation',
         'url' : 'precomputed://file:///data/fields/fafb-ffn1-20200412/segmentation',
-        'type' : 'cloudvolume',
+        'type' : 'neuroglancer_precomputed',
         'scales' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
         'voxel_size' : [4,4,40],
         'services' : ['query'],
         'dtype' : 'uint64',
-        'width' : 1
+        'width' : 1,
+        'ts_info' : {}
+    },
+    'fafb-ffn1-20200412-gcs' : {
+        'description' : 'fafb-ffn1-20200412 segmentation (access via GCS)',
+        'type' : 'neuroglancer_precomputed',
+        'scales' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        'voxel_size' : [4,4,40],
+        'services' : ['query'],
+        'dtype' : 'uint64',
+        'width' : 1,
+        'tsinfo' : {
+            'driver' : 'neuroglancer_precomputed',
+            'kvstore': {
+                'driver': 'gcs',
+                'bucket': 'fafb-ffn1-20200412',
+            },
+            'path': 'segmentation',
+        }       
     }
 }

@@ -12,17 +12,18 @@ def query_points(dataset, scale, locs):
     """
     info = datasource.get_datasource_info(dataset)
     n5 = datasource.get_datastore(dataset, scale)
-    
-    if isinstance(n5, zarr.core.Array):
-        blocksize = np.asarray(n5.chunks[:3]) * config.CHUNK_MULTIPLIER
-        voxel_offset = n5.attrs['voxel_offset']
-    elif info['type'] == 'cloudvolume':
-        # Is there a better way to see if it's cloudvolunme?
-        blocksize = n5.chunk_size * config.CHUNK_MULTIPLIER
+
+    shape = (n5.domain[0].inclusive_max, n5.domain[1].inclusive_max, n5.domain[2].inclusive_max)
+
+
+    if info['type'] == 'neuroglancer_precomputed':
+        # No need to use voxel offset. Included in precomputed metadata.
         voxel_offset = [0, 0, 0]
-    else:
-        # Some data format not yet supported!
-        blocksize = [512, 512, 8]
+        blocksize = np.asarray(n5.spec().to_json()['scale_metadata']['chunk_size']) * config.CHUNK_MULTIPLIER  
+    elif info['type'] in ['zarr', 'zarr-nested']:
+        blocksize = np.array(n5.spec().to_json()['metadata']['chunks'])[0:3] * config.CHUNK_MULTIPLIER
+        # TODO: Figure out how to read attributes in tensorstore
+        print(n5)
         voxel_offset = [0, 0, 0]
 
     query_points = np.empty_like(locs)
@@ -30,7 +31,7 @@ def query_points(dataset, scale, locs):
     query_points[:,1] = (locs[:,1] // 2**scale) - voxel_offset[1]
     query_points[:,2] = (locs[:,2] - voxel_offset[2])
 
-    bad_points = ((query_points < [0,0,0]) | (query_points >= np.array(n5.shape)[0:3])).any(axis=1)
+    bad_points = ((query_points < [0,0,0]) | (query_points >= np.array(shape)[0:3])).any(axis=1)
     query_points[bad_points] = np.NaN
     if bad_points.all():
         # No valid points. The binning code will otherwise fail.

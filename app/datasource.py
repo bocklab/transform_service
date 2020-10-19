@@ -1,6 +1,6 @@
 import zarr
 from fastapi import HTTPException
-from cloudvolume import CloudVolume
+import tensorstore as ts
 
 from . import config
 
@@ -20,20 +20,24 @@ def get_datastore(dataset_name, mip):
     if mip not in datainfo['scales']:
         raise HTTPException(status_code=400, detail="Scale {} not found".format(mip))
 
-    if datainfo['type'] == 'cloudvolume':
-        s = CloudVolume(datainfo['url'], mip=mip, bounded=False, fill_missing=True, cache=False)
+    # Read main settings from config
+    tsinfo = datainfo['tsinfo']
+    
+    # Set rest of settings for all datasources
+
+    tsinfo['recheck_cached_metadata'] = 'open'
+    tsinfo['recheck_cached_data'] = 'open'
+    tsinfo['context'] = { 'cache_pool' : { 'total_bytes_limit': 100_000_000 }}
+
+    if datainfo['type'] == 'neuroglancer_precomputed':
+        tsinfo['scale_index'] = mip
+    elif datainfo['type'] in ["zarr", "zarr-nested"]:
+        # Zarr files have mipmaps stored in "s7" under root
+        tsinfo['kvstore']['path'] = "%s/s%d" % (tsinfo['kvstore']['path'], mip)
     else:
-        if datainfo['type'] == 'n5':
-            zroot = zarr.open(datainfo['path'], mode='r')
-        elif datainfo['type'] == 'zarr':
-            zroot = zarr.open(datainfo['path'], mode='r')
-        elif datainfo['type'] == 'zarr-nested':
-            store = zarr.NestedDirectoryStore(datainfo['path'])
-            zroot = zarr.group(store=store)
-        else:
-            raise HTTPException(status_code=400, detail="Datasource type '{}' not found".format(datainfo['type'] ))
-            
-        s = zroot["s%d" % mip]
+        raise HTTPException(status_code=400, detail="Datasource type '{}' not found".format(datainfo['type'] ))
+
+    s = ts.open(tsinfo).result()
     open_n5_mip[key] = s
     return s
 

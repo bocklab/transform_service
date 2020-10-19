@@ -37,10 +37,10 @@ def test_out_of_range():
 
 def test_query_ffn1_binary():
     # TODO: Create a Google datasource with a fixture
-    DATASOURCES['fafb-ffn1-20200412']['url'] = 'https://storage.googleapis.com/fafb-ffn1-20200412/segmentation'
+    #DATASOURCES['fafb-ffn1-20200412']['url'] = 'https://storage.googleapis.com/fafb-ffn1-20200412/segmentation'
 
     q1 = np.array([[87110, 63790, 5436], [0,0,0], [106110, 66106, 1968]], dtype=np.single, order="C", copy=True)
-    response = client.post("/query/dataset/fafb-ffn1-20200412/s/0/values_binary/format/array_float_Nx3", data=q1.tobytes())
+    response = client.post("/query/dataset/fafb-ffn1-20200412-gcs/s/0/values_binary/format/array_float_Nx3", data=q1.tobytes())
     assert response.status_code == 200
     
     r1 = np.frombuffer(response.content, dtype=np.uint64).reshape(q1.shape[0],1)
@@ -49,7 +49,7 @@ def test_query_ffn1_binary():
 
 def test_query_ffn1_values_string():
     # TODO: Create a Google datasource with a fixture
-    DATASOURCES['fafb-ffn1-20200412']['url'] = 'https://storage.googleapis.com/fafb-ffn1-20200412/segmentation'
+    #DATASOURCES['fafb-ffn1-20200412']['url'] = 'https://storage.googleapis.com/fafb-ffn1-20200412/segmentation'
     
     q1 = {
             'x' : [87110, 0, 106110],
@@ -57,7 +57,7 @@ def test_query_ffn1_values_string():
             'z' : [5436, 0, 1968]
         }
 
-    response = client.post("/query/dataset/fafb-ffn1-20200412/s/0/values_array_string_response", json=q1)
+    response = client.post("/query/dataset/fafb-ffn1-20200412-gcs/s/0/values_array_string_response", json=q1)
     assert response.status_code == 200
 
     assert response.json() == {'values' : [["8678640431", "0", "2938732695"]]}

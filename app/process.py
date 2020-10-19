@@ -8,43 +8,22 @@ import pandas as pd
 #
 
 
-def _get_ids(vol, bl, co):
+def _get_ids(vol, co):
     """Fetch block and extract IDs.
 
     Parameters
     ----------
-    vol :       CloudVolume
+    vol :       tensorstore
                 Volume to query.
-    bl :        list-like
-                Coordinates defining the block:
-                left, right, top, bottom, z1, z2
     co :        numpy array
                 x/y/z coordinates WITHIN block
                 of segment IDs to fetch.
 
     """
-    # Unpack block indices
-    l, r, t, b, z1, z2 = bl
-
     # Use integer coordinates (for now...)
     co = co.astype(int)
 
-    # Subset block to relevant parts (i.e. those containing
-    # requested coordinates) to save memory
-    mn = co.min(axis=0)
-    mx = co.max(axis=0) + 1
-    l, r = l + mn[0], l + mx[0]
-    t, b = t + mn[1], t + mx[1]
-    z1, z2 = z1 + mn[2], z1 + mx[2]
-
-    # Offset coordinates too
-    co -= mn
-
-    # Get the block
-    chunk = vol[l:r, t:b, z1:z2]
-
-    # Get the IDs out of the block
-    co_id = chunk[co[:, 0], co[:, 1], co[:, 2]]
+    co_id = vol[co[:, 0], co[:, 1], co[:, 2]]
 
     return co_id
 
@@ -98,16 +77,17 @@ def get_multiple_ids(x, vol, max_workers=4, blocksize=np.array([512, 512, 32])):
         # Iterate over all blocks
         for bl, co_ix in blocked.items():
             # Get this block's (i.e. the bin's) indices
-            l, r, t, b, z1, z2 = (int(bl[0].left), int(bl[0].right),
-                                  int(bl[1].left), int(bl[1].right),
-                                  int(bl[2].left), int(bl[2].right))
+            # l, r, t, b, z1, z2 = (int(bl[0].left), int(bl[0].right),
+            #                      int(bl[1].left), int(bl[1].right),
+            #                      int(bl[2].left), int(bl[2].right))
 
             # Get the coordinates in this bin
             co = x[co_ix]
 
             # Offset coordinates by the chunk's coordinates
             # to produce "in block coordinates"
-            co = co - np.array([l, t, z1])
+            # This is *not* needed with tensorstore. It always uses global coordinates.
+            # co = co - np.array([l, t, z1])
 
             # Keep track of the indices of the coordinates we are querying
             # in this iteration
@@ -117,9 +97,9 @@ def get_multiple_ids(x, vol, max_workers=4, blocksize=np.array([512, 512, 32])):
             cos.append(co)
 
             # Add to list of indices
-            ranges.append( [l, r, t, b, z1, z2])
+            # ranges.append( [l, r, t, b, z1, z2])
 
-        result = pool.map(_get_ids, [vol] * len(seg_ix), ranges, cos)
+        result = pool.map(_get_ids, [vol] * len(seg_ix), cos)
         seg_ids = np.vstack(result)
 
         pool.clear()
