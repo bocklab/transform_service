@@ -29,7 +29,7 @@ def get_datastore(dataset_name, mip):
 
     tsinfo['recheck_cached_metadata'] = 'open'
     tsinfo['recheck_cached_data'] = 'open'
-    tsinfo['context'] = { 'cache_pool' : { 'total_bytes_limit': 100_000_000 }}
+    tsinfo['context'] = { 'cache_pool' : { 'total_bytes_limit': 200_000_000 }}
 
     if datainfo['type'] == 'neuroglancer_precomputed':
         tsinfo['scale_index'] = mip
@@ -49,7 +49,7 @@ def get_datastore(dataset_name, mip):
 
                     outputmaps = []
                     for dim in range(len(zattr['voxel_offset'])):
-                        outputmaps.append(ts.OutputIndexMap(offset=zattr['voxel_offset'][dim], input_dimension=dim))
+                        outputmaps.append(ts.OutputIndexMap(offset= - zattr['voxel_offset'][dim], input_dimension=dim))
 
                     if datainfo['width'] > 1:
                         outputmaps.append(ts.OutputIndexMap(offset=0, input_dimension=len(outputmaps)))
