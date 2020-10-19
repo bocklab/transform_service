@@ -56,8 +56,6 @@ def get_multiple_ids(x, vol, max_workers=4, blocksize=np.array([512, 512, 32])):
     cbin['x_bin'] = pd.cut(cbin[0], xbins, include_lowest=True, right=False)
     cbin['y_bin'] = pd.cut(cbin[1], ybins, include_lowest=True, right=False)
     cbin['z_bin'] = pd.cut(cbin[2], zbins, include_lowest=True, right=False)
-    # This is now a dictionary of bin -> indices of coordinates
-    # blocked = cbin.groupby(['x_bin', 'y_bin', 'z_bin']).indices
 
     # Throw out NaNs
     cbin = cbin.loc[~np.any(cbin.isnull(), axis=1)]
@@ -72,22 +70,11 @@ def get_multiple_ids(x, vol, max_workers=4, blocksize=np.array([512, 512, 32])):
 
     with ThreadPool(nodes=max_workers) as pool:
         seg_ix = []
-        ranges = []
         cos = []
+
         # Iterate over all blocks
-        for bl, co_ix in blocked.items():
-            # Get this block's (i.e. the bin's) indices
-            # l, r, t, b, z1, z2 = (int(bl[0].left), int(bl[0].right),
-            #                      int(bl[1].left), int(bl[1].right),
-            #                      int(bl[2].left), int(bl[2].right))
-
-            # Get the coordinates in this bin
+        for _, co_ix in blocked.items():
             co = x[co_ix]
-
-            # Offset coordinates by the chunk's coordinates
-            # to produce "in block coordinates"
-            # This is *not* needed with tensorstore. It always uses global coordinates.
-            # co = co - np.array([l, t, z1])
 
             # Keep track of the indices of the coordinates we are querying
             # in this iteration
@@ -95,9 +82,6 @@ def get_multiple_ids(x, vol, max_workers=4, blocksize=np.array([512, 512, 32])):
 
             #  Add to list of coordinates
             cos.append(co)
-
-            # Add to list of indices
-            # ranges.append( [l, r, t, b, z1, z2])
 
         result = pool.map(_get_ids, [vol] * len(seg_ix), cos)
         seg_ids = np.vstack(result)
