@@ -92,9 +92,9 @@ DATASOURCES = {
             'driver' : 'neuroglancer_precomputed',
             'kvstore': {
                 'driver': 'file',
-                'bucket': 'fafb-ffn1-20200412',
+                'path': '/data/fields/fafb-ffn1-20200412',
             },
-            'path': '/data/fields/fafb-ffn1-20200412/segmentation/segmentation',
+            'path': 'segmentation',
         }  
         
     },

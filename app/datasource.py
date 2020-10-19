@@ -1,4 +1,6 @@
-import zarr
+import os
+import json
+
 from fastapi import HTTPException
 import tensorstore as ts
 
@@ -34,10 +36,33 @@ def get_datastore(dataset_name, mip):
     elif datainfo['type'] in ["zarr", "zarr-nested"]:
         # Zarr files have mipmaps stored in "s7" under root
         tsinfo['kvstore']['path'] = "%s/s%d" % (tsinfo['kvstore']['path'], mip)
+
+        # Read the voxel_offset as well, to set the transform
+        # TODO: Does tensorstore support Zarr attributes?
+        # TODO: Figure out dimensionality (4 vs 3) rather than assume 4 for Zarr
+        zattr_file = os.path.join(tsinfo['kvstore']['path'], ".zattrs")
+        if os.path.exists(zattr_file):
+            with open(zattr_file) as f:
+                zattr = json.load(f)
+                print(zattr)
+                if 'voxel_offset' in zattr:
+
+                    outputmaps = []
+                    for dim in range(len(zattr['voxel_offset'])):
+                        outputmaps.append(ts.OutputIndexMap(offset=zattr['voxel_offset'][dim], input_dimension=dim))
+
+                    if datainfo['width'] > 1:
+                        outputmaps.append(ts.OutputIndexMap(offset=0, input_dimension=len(outputmaps)))
+
+                    x = ts.IndexTransform(input_rank=len(outputmaps), output=outputmaps)
+                    tsinfo['transform'] = x.to_json()
+
+
     else:
         raise HTTPException(status_code=400, detail="Datasource type '{}' not found".format(datainfo['type'] ))
 
     s = ts.open(tsinfo).result()
+    print(s)
     open_n5_mip[key] = s
     return s
 

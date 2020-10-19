@@ -22,9 +22,9 @@ def query_points(dataset, scale, locs):
         blocksize = np.asarray(n5.spec().to_json()['scale_metadata']['chunk_size']) * config.CHUNK_MULTIPLIER  
     elif info['type'] in ['zarr', 'zarr-nested']:
         blocksize = np.array(n5.spec().to_json()['metadata']['chunks'])[0:3] * config.CHUNK_MULTIPLIER
-        # TODO: Figure out how to read attributes in tensorstore
-        print(n5)
-        voxel_offset = [0, 0, 0]
+
+        # TODO: Figure out how to read 'attr's with tensorstore
+        voxel_offset = info.get('voxel_offset', [0, 0, 0])
 
     query_points = np.empty_like(locs)
     query_points[:,0] = (locs[:,0] // 2**scale) - voxel_offset[0]
