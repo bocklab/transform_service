@@ -58,7 +58,7 @@ DATASOURCES = {
             'driver' : 'zarr',
             'kvstore': {
                 'driver': 'file',
-                'path' : '/data/fields/v0_inverse/field.zarr',
+                'path' : '/data/fields/v0_inverse/field.zarr'
             },
             'key_encoding': '/'
         }  
@@ -75,7 +75,7 @@ DATASOURCES = {
             'driver' : 'zarr',
             'kvstore': {
                 'driver': 'file',
-                'path' : '/data/fields/fanc/field.zarr',
+                'path' : '/data/fields/fanc/field.zarr'
             },
             'key_encoding': '/'
         }  
@@ -92,9 +92,9 @@ DATASOURCES = {
             'driver' : 'neuroglancer_precomputed',
             'kvstore': {
                 'driver': 'file',
-                'path': '/data/fields/fafb-ffn1-20200412',
+                'path': '/data/fields/fafb-ffn1-20200412'
             },
-            'path': 'segmentation',
+            'path': 'segmentation'
         }  
         
     },
@@ -110,9 +110,44 @@ DATASOURCES = {
             'driver' : 'neuroglancer_precomputed',
             'kvstore': {
                 'driver': 'gcs',
-                'bucket': 'fafb-ffn1-20200412',
+                'bucket': 'fafb-ffn1-20200412'
             },
-            'path': 'segmentation',
+            'path': 'segmentation'
         }       
+    },
+    'fafb-ffn1-20200412-zarr' : {
+        'description' : 'fafb-ffn1-20200412 segmentation (access via local zarr)',
+        'type' : 'neuroglancer_precomputed',
+        'scales' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        'voxel_size' : [4,4,40],
+        'services' : ['query'],
+        'dtype' : 'uint64',
+        'width' : 1,
+        'tsinfo' : {
+            'driver' : 'zarr',
+            'key_encoding': '/',
+            'kvstore': {
+                'driver': 'file',
+                'bucket': '/data/fields/fafb-ffn1-20200412/field.zarr/'
+            },
+            'path': 'segmentation'
+        }
+    },
+    'flywire_190410' : {
+        'description' : 'super voxel segmentation of FlyWire [ws_190410_FAFB_v02_ws_size_threshold_200]',
+        'type' : 'zarr-nested',
+        'scales' : [0, 1, 2, 3, 4, 5, 6],
+        'voxel_size' : [4,4,40],
+        'services' : ['query'],
+        'dtype' : 'uint64',
+        'width' : 1,
+        'tsinfo' : {
+            'driver' : 'zarr',
+            'key_encoding': '/',
+            'kvstore': {
+                'driver': 'file',
+                'path' : '/data/fields/flywire_seg/ws_190410_FAFB_v02_ws_size_threshold_200.zarr/'
+            }
+        }   
     }
 }
