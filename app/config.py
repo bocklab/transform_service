@@ -140,7 +140,7 @@ DATASOURCES = {
         'scales' : [0, 1, 2, 3, 4, 5, 6],
         'voxel_size' : [4,4,40],
         # FlyWire starts at 16x16x16, e.g., 1/4 of FAFB
-        'downsample_factor' : [[4,4,1], [8,8,1], [16,16,2], [32,32,4], [64,64,8], [128,128,16], [256,256,32]],
+        'downsample_factor' : [[4,4,1], [8,8,1], [16,16,1], [32,32,1], [64,64,1], [128,128,1], [256,256,1]],
         'services' : ['query'],
         'dtype' : 'uint64',
         'width' : 1,
