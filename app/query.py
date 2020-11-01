@@ -1,5 +1,5 @@
 import numpy as np
-import zarr
+from fastapi import HTTPException 
 
 from . import config
 from . import process
@@ -46,8 +46,7 @@ def map_points(dataset, scale, locs):
     """
     info = datasource.get_datasource_info(dataset)
     if "transform" not in info["services"]:
-        raise Exception("This dataset does not provide transform services.")
-
+        raise HTTPException(status_code=400, detail="This dataset does not provide transform services.")
     field = query_points(dataset, scale, locs)
     results = np.zeros(locs.shape[0], dtype=[('x', '<f4'), ('y', '<f4'), ('z', '<f4'), ('dx', '<f4'), ('dy', '<f4')])
 
