@@ -1,3 +1,4 @@
+import copy
 import os
 import json
 
@@ -29,7 +30,7 @@ def get_datastore(dataset_name, mip):
         raise HTTPException(status_code=400, detail="Scale {} not found".format(mip))
 
     # Read main settings from config
-    tsinfo = datainfo['tsinfo']
+    tsinfo = copy.deepcopy(datainfo['tsinfo'].copy())
     
     # Set rest of settings for all datasources
 
@@ -65,7 +66,7 @@ def get_datastore(dataset_name, mip):
 
     else:
         raise HTTPException(status_code=400, detail="Datasource type '{}' not found".format(datainfo['type'] ))
-
+    
     s = ts.open(tsinfo).result()
     open_n5_mip[key] = s
     return s
