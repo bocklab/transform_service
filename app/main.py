@@ -86,7 +86,6 @@ class PointResponse(BaseModel):
     dy: float
 
 @app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse, deprecated=True)
-@app.get('/transform/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse)
 async def transform_point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
     """Query a single point."""
 
@@ -245,7 +244,7 @@ class BinaryFormats(str, Enum):
             response_model=None,
             responses={ 200: {"content": {"application/octet-stream": {}},
                         "description": "Binary encoding of output array."}},
-            deprecated=True
+                deprecated=True
             )
 @app.post('/transform/dataset/{dataset}/s/{scale}/values_binary/format/{format}',
             response_model=None,
