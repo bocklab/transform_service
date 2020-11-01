@@ -12,6 +12,7 @@ def query_points(dataset, scale, locs):
     """
     info = datasource.get_datasource_info(dataset)
     n5 = datasource.get_datastore(dataset, scale)
+    downsample = datasource.get_datastore_downsample(dataset, scale)
 
     shape = (n5.domain[0].inclusive_max, n5.domain[1].inclusive_max, n5.domain[2].inclusive_max)
 
@@ -22,9 +23,9 @@ def query_points(dataset, scale, locs):
         blocksize = np.array(n5.spec().to_json()['metadata']['chunks'])[0:3] * config.CHUNK_MULTIPLIER
 
     query_points = np.empty_like(locs)
-    query_points[:,0] = locs[:,0] // 2**scale
-    query_points[:,1] = locs[:,1] // 2**scale
-    query_points[:,2] = locs[:,2]
+    query_points[:,0] = locs[:,0] // downsample[0]
+    query_points[:,1] = locs[:,1] // downsample[1]
+    query_points[:,2] = locs[:,2] // downsample[2]
 
     bad_points = ((query_points < [0,0,0]) | (query_points >= np.array(shape)[0:3])).any(axis=1)
     query_points[bad_points] = np.NaN

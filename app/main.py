@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import logging
 import traceback
 from enum import Enum
@@ -15,6 +16,8 @@ from typing import Optional, List, Any, Tuple
 from starlette.concurrency import run_in_threadpool 
 from fastapi import FastAPI, HTTPException, Body, Response, Request
 from fastapi.responses import HTMLResponse, ORJSONResponse
+from fastapi.templating import Jinja2Templates
+
 from msgpack_asgi import MessagePackMiddleware
 from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
@@ -26,18 +29,20 @@ from .query import map_points, query_points
 api_description = """
 This service will take a set of points and will transform them using the specified field.
 
-Query units should be in *pixels* at full resolution (e.g. mip=0), which generally maps to the pixel values shown in CATMAID or Neuroglancer.
+Query units should be in *pixels* at full resolution (e.g. mip=0), which generally maps to the coordinates shown in CATMAID or Neuroglancer.
 
 The return values are the transformed {x,y,z} along with the {dx,dy} values from the field.
 
-The selection of scale (mip) selects the granularity of the field being used, but does not change the units.
+The selection of scale (mip) selects the granularity of the field being used, but will not change the units.
 
 Error values are returned as `null`, not `NaN` as done with the previous iteration of this service. The most likely cause of an error is being out-of-bounds of the underlying array.
 
-_Note on using [msgpack](https://msgpack.org/)_: Use `Content-type: application/x-msgpack` and `Accept: application/x-msgpack` to use msgpack instead of JSON. There is currently data size limit of *64KB* when using msgpack. I am currently looking for a workaround.
+_Note on using [msgpack](https://msgpack.org/)_: Use `Content-type: application/x-msgpack` and `Accept: application/x-msgpack` to use msgpack instead of JSON. There is currently data size limit of *64KB* when using msgpack.
+(<a href="https://github.com/florimondmanca/msgpack-asgi/issues/11">GitHub issue</a>).
 
-Questions? Feel free to bug Eric on FAFB or FlyWire slack.
 """
+
+templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
 app = FastAPI(default_response_class=ORJSONResponse,
                 title="Transformation Service",
@@ -51,15 +56,8 @@ app.add_middleware(MessagePackMiddleware)
 # Main page of the service
 #
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def root():
-    return """<!DOCTYPE html>
-<html>
-<head><title>Transformation &amp; Query Service</title></head>
-<body>
-<h1>Transformation &amp; Query Service</h1>
-See the <a href="docs/">API documentation</a> for usage info.
-</body>
-</html>"""
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get('/info/')
 async def dataset_info():
@@ -87,7 +85,8 @@ class PointResponse(BaseModel):
     dx: float
     dy: float
 
-@app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse)
+@app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse, deprecated=True)
+@app.get('/transform/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse)
 async def transform_point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
     """Query a single point."""
 
@@ -109,7 +108,8 @@ async def transform_point_value(dataset: DataSetName, scale: int, z: int, x: flo
 class PointList(BaseModel):
     locations : List[Tuple[float, float, float]]
 
-@app.post('/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse])
+@app.post('/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse], deprecated=True)
+@app.post('/transform/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse])
 async def transform_values(dataset: DataSetName, scale: int, data : PointList):
     """Return dx, dy and new coordinates for an input set of locations."""
 
@@ -167,7 +167,8 @@ class ColumnPointListResponse(BaseModel):
     dx: List[float]
     dy: List[float]
 
-@app.post('/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse)
+@app.post('/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse, deprecated=True)
+@app.post('/transform/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse)
 async def transform_values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return dx, dy and new coordinates for an input set of locations."""
 
@@ -241,6 +242,12 @@ class BinaryFormats(str, Enum):
     array_Nx3 = "array_float_Nx3"
 
 @app.post('/dataset/{dataset}/s/{scale}/values_binary/format/{format}',
+            response_model=None,
+            responses={ 200: {"content": {"application/octet-stream": {}},
+                        "description": "Binary encoding of output array."}},
+            deprecated=True
+            )
+@app.post('/transform/dataset/{dataset}/s/{scale}/values_binary/format/{format}',
             response_model=None,
             responses={ 200: {"content": {"application/octet-stream": {}},
                         "description": "Binary encoding of output array."}}

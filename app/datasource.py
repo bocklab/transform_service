@@ -8,6 +8,12 @@ from . import config
 
 open_n5_mip = {}
 
+def get_datasource_info(dataset_name):
+    if dataset_name not in config.DATASOURCES:
+        raise HTTPException(status_code=400, detail="Dataset {} not found".format(dataset_name))
+    return config.DATASOURCES[dataset_name]
+
+
 def get_datastore(dataset_name, mip):
     # Attempt to open & store handle to n5 groups
     key = (dataset_name, mip)
@@ -67,7 +73,10 @@ def get_datastore(dataset_name, mip):
     return s
 
 
-def get_datasource_info(dataset_name):
-    if dataset_name not in config.DATASOURCES:
-        raise HTTPException(status_code=400, detail="Dataset {} not found".format(dataset_name))
-    return config.DATASOURCES[dataset_name]
+def get_datastore_downsample(dataset_name, mip):
+    # Get the downsample for a given mip level
+    info = get_datasource_info(dataset_name)
+    if 'downsample_factor' in info:
+        return info['downsample_factor'][mip]
+    else:
+        return [2**mip, 2**mip, 1.0]
