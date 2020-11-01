@@ -23,7 +23,7 @@ def _get_ids(vol, co):
     # Use integer coordinates (for now...)
     co = co.astype(int)
 
-    co_id = vol[co[:, 0], co[:, 1], co[:, 2]]
+    co_id = vol[co[:, 0], co[:, 1], co[:, 2]].read().result()
 
     return co_id
 
@@ -92,7 +92,7 @@ def get_multiple_ids(x, vol, max_workers=4, blocksize=np.array([512, 512, 32])):
     seg_ix = np.hstack(seg_ix)
 
     # Generate placeholder of NaNs. Get data width from the returned data.
-    ordered = np.full((x.shape[0], seg_ids.shape[1]), np.nan)
+    ordered = np.full((x.shape[0], seg_ids.shape[1]), np.nan, dtype=seg_ix.dtype)
 
     # Populate with segment IDs
     ordered[seg_ix] = seg_ids

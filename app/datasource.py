@@ -52,7 +52,6 @@ def get_datastore(dataset_name, mip):
             with open(zattr_file) as f:
                 zattr = json.load(f)
                 if 'voxel_offset' in zattr:
-
                     outputmaps = []
                     for dim in range(len(zattr['voxel_offset'])):
                         outputmaps.append(ts.OutputIndexMap(offset= - zattr['voxel_offset'][dim], input_dimension=dim))
