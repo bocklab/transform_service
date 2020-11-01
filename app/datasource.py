@@ -50,7 +50,6 @@ def get_datastore(dataset_name, mip):
         if os.path.exists(zattr_file):
             with open(zattr_file) as f:
                 zattr = json.load(f)
-                print(zattr)
                 if 'voxel_offset' in zattr:
 
                     outputmaps = []
@@ -68,7 +67,6 @@ def get_datastore(dataset_name, mip):
         raise HTTPException(status_code=400, detail="Datasource type '{}' not found".format(datainfo['type'] ))
 
     s = ts.open(tsinfo).result()
-    print(s)
     open_n5_mip[key] = s
     return s
 
