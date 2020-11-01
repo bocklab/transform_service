@@ -25,6 +25,10 @@ def _get_ids(vol, co):
 
     co_id = vol[co[:, 0], co[:, 1], co[:, 2]].read().result()
 
+    # Return a 2D array, even if the second dimension is one item
+    if co_id.ndim == 1:
+        co_id = np.expand_dims(co_id, 1)
+
     return co_id
 
 
