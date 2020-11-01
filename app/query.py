@@ -44,6 +44,9 @@ def map_points(dataset, scale, locs):
        Input:  [n,3] numpy array representing n (x,y,z) points
        Output: [n,5] numpy array representing n (new_x, new_y, new_z, new_dx, new_dy)
     """
+    info = datasource.get_datasource_info(dataset)
+    if "transform" not in info["services"]:
+        raise Exception("This dataset does not provide transform services.")
 
     field = query_points(dataset, scale, locs)
     results = np.zeros(locs.shape[0], dtype=[('x', '<f4'), ('y', '<f4'), ('z', '<f4'), ('dx', '<f4'), ('dy', '<f4')])
