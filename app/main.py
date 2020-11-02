@@ -138,7 +138,7 @@ async def transform_values(dataset: DataSetName, scale: int, data : PointList):
 
 @app.post('/query/dataset/{dataset}/s/{scale}/cloud_volume_server', response_model=List[str])
 async def query_values_cloud_volume_server(dataset: DataSetName, scale: int, data: PointList):
-    """Return dx, dy and new coordinates for an input set of locations.
+    """
     Implements the [CloudVolumeServer](https://github.com/flyconnectome/CloudVolumeServer) API.
     """
 
