@@ -44,9 +44,28 @@ _Note on using [msgpack](https://msgpack.org/)_: Use `Content-type: application/
 
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
+tags_metadata = [
+    {
+        "name": "transform",
+        "description": "Services to transform a set of points using a precomputed displacement field (e.g., FAFBv14 to FlyWire)",
+    },
+    {
+        "name": "query",
+        "description": "Retrieve the values stored at a set of points (e.g. segmentation values at a set of voxels)"
+    },
+    {
+        "name": "other"
+    },
+    {
+        "name": "deprecated"
+    }
+]
+
+
 app = FastAPI(default_response_class=ORJSONResponse,
                 title="Transformation Service",
                 description=api_description,
+                openapi_tags=tags_metadata,
                 debug=True)
 
 # MessagePackMiddleware does not currently support large request (`more_body`) so we'll do our own...
@@ -59,7 +78,7 @@ app.add_middleware(MessagePackMiddleware)
 async def root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-@app.get('/info/')
+@app.get('/info/', tags=["other"])
 async def dataset_info():
     """Retrieve a list of available datasources."""
     cleaned_datsets = {}
@@ -85,7 +104,7 @@ class PointResponse(BaseModel):
     dx: float
     dy: float
 
-@app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse, deprecated=True)
+@app.get('/dataset/{dataset}/s/{scale}/z/{z}/x/{x}/y/{y}/', response_model=PointResponse, deprecated=True, tags=["deprecated"])
 async def transform_point_value(dataset: DataSetName, scale: int, z: int, x: float, y: float):
     """Query a single point."""
 
@@ -107,8 +126,8 @@ async def transform_point_value(dataset: DataSetName, scale: int, z: int, x: flo
 class PointList(BaseModel):
     locations : List[Tuple[float, float, float]]
 
-@app.post('/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse], deprecated=True)
-@app.post('/transform/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse])
+@app.post('/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse], deprecated=True, tags=["deprecated"])
+@app.post('/transform/dataset/{dataset}/s/{scale}/values', response_model=List[PointResponse], tags=["transform"])
 async def transform_values(dataset: DataSetName, scale: int, data : PointList):
     """Return dx, dy and new coordinates for an input set of locations."""
 
@@ -136,7 +155,7 @@ async def transform_values(dataset: DataSetName, scale: int, data : PointList):
     return results
 
 
-@app.post('/query/dataset/{dataset}/s/{scale}/cloud_volume_server', response_model=List[str])
+@app.post('/query/dataset/{dataset}/s/{scale}/cloud_volume_server', response_model=List[str], tags=["query"])
 async def query_values_cloud_volume_server(dataset: DataSetName, scale: int, data: PointList):
     """
     Implements the [CloudVolumeServer](https://github.com/flyconnectome/CloudVolumeServer) API.
@@ -166,8 +185,8 @@ class ColumnPointListResponse(BaseModel):
     dx: List[float]
     dy: List[float]
 
-@app.post('/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse, deprecated=True)
-@app.post('/transform/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse)
+@app.post('/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse, deprecated=True, tags=["deprecated"])
+@app.post('/transform/dataset/{dataset}/s/{scale}/values_array', response_model=ColumnPointListResponse, tags=["transform"])
 async def transform_values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return dx, dy and new coordinates for an input set of locations."""
 
@@ -195,7 +214,7 @@ async def transform_values_array(dataset: DataSetName, scale: int, locs : Column
 class QueryColumnPointListResponse(BaseModel):
     values: List[List[float]]
 
-@app.post('/query/dataset/{dataset}/s/{scale}/values_array', response_model=QueryColumnPointListResponse)
+@app.post('/query/dataset/{dataset}/s/{scale}/values_array', response_model=QueryColumnPointListResponse, tags=["query"])
 async def query_values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return segment IDs at given locations.
        One 
@@ -222,7 +241,7 @@ async def query_values_array(dataset: DataSetName, scale: int, locs : ColumnPoin
 class ColumnPointListStringResponse(BaseModel):
     values: List[List[str]]
 
-@app.post('/query/dataset/{dataset}/s/{scale}/values_array_string_response', response_model=ColumnPointListStringResponse)
+@app.post('/query/dataset/{dataset}/s/{scale}/values_array_string_response', response_model=ColumnPointListStringResponse, tags=["query"])
 async def query_values_array_string(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return segment IDs at given locations.
        Like *query_values_array*, but result array contains strings for easier parsing in R.
@@ -244,12 +263,13 @@ class BinaryFormats(str, Enum):
             response_model=None,
             responses={ 200: {"content": {"application/octet-stream": {}},
                         "description": "Binary encoding of output array."}},
-                deprecated=True
+                deprecated=True, tags=["deprecated"]
             )
 @app.post('/transform/dataset/{dataset}/s/{scale}/values_binary/format/{format}',
             response_model=None,
             responses={ 200: {"content": {"application/octet-stream": {}},
-                        "description": "Binary encoding of output array."}}
+                        "description": "Binary encoding of output array."}},
+            tags=["transform"]
             )
 async def transform_values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
     """Raw binary version of the API. Data will consist of 1 uint 32.
@@ -297,7 +317,8 @@ async def transform_values_binary(dataset: DataSetName, scale: int, format: Bina
 @app.post('/query/dataset/{dataset}/s/{scale}/values_binary/format/{format}',
             response_model=None,
             responses={ 200: {"content": {"application/octet-stream": {}},
-                        "description": "Binary encoding of output array."}}
+                        "description": "Binary encoding of output array."}},
+            tags=["query"]
             )
 async def query_values_binary(dataset: DataSetName, scale: int, format: BinaryFormats, request: Request):
     """Query a dataset for values at a point(s)
