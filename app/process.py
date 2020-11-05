@@ -94,13 +94,11 @@ def get_multiple_ids(x, vol, dtype=None, max_workers=4, blocksize=np.array([512,
         pool.clear()
 
     # Turn list of list of indices into a flat array
-    print(seg_ix)
     seg_ix = np.hstack(seg_ix)
 
     # Generate placeholder of NaNs. Get data width from the returned data.
     ordered = np.full((x.shape[0], seg_ids.shape[1]), np.nan, dtype=dtype)
 
-    print(seg_ix, seg_ids)
     # Populate with segment IDs
     ordered[seg_ix] = seg_ids
 
