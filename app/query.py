@@ -35,9 +35,9 @@ def query_points(dataset, scale, locs):
     else:
         field = process.get_multiple_ids(query_points, n5,
                                         max_workers=config.MaxWorkers,
-                                        blocksize=blocksize)
-
-    return field.astype(info["dtype"])
+                                        blocksize=blocksize,
+                                        dtype=info["dtype"])
+    return field
 
 def map_points(dataset, scale, locs):
     """Do the work for mapping data.

@@ -32,7 +32,7 @@ def _get_ids(vol, co):
     return co_id
 
 
-def get_multiple_ids(x, vol, max_workers=4, blocksize=np.array([512, 512, 32])):
+def get_multiple_ids(x, vol, dtype=None, max_workers=4, blocksize=np.array([512, 512, 32])):
     """Return multiple segment IDs using cloudvolume.
 
     Parameters
@@ -41,7 +41,7 @@ def get_multiple_ids(x, vol, max_workers=4, blocksize=np.array([512, 512, 32])):
               Array with x/y/z coordinates to fetch
               segmentation IDs for.
     vol :     cloudvolume.CloudVolume
-
+    dtype :   dtype to use for return field (if None, return same as stored)
     """
     # Make sure x is array
     if not isinstance(x, np.ndarray):
@@ -88,16 +88,19 @@ def get_multiple_ids(x, vol, max_workers=4, blocksize=np.array([512, 512, 32])):
             cos.append(co)
 
         result = pool.map(_get_ids, [vol] * len(seg_ix), cos)
+
         seg_ids = np.vstack(result)
 
         pool.clear()
 
     # Turn list of list of indices into a flat array
+    print(seg_ix)
     seg_ix = np.hstack(seg_ix)
 
     # Generate placeholder of NaNs. Get data width from the returned data.
-    ordered = np.full((x.shape[0], seg_ids.shape[1]), np.nan, dtype=seg_ix.dtype)
+    ordered = np.full((x.shape[0], seg_ids.shape[1]), np.nan, dtype=dtype)
 
+    print(seg_ix, seg_ids)
     # Populate with segment IDs
     ordered[seg_ix] = seg_ids
 
