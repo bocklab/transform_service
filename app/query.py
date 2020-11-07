@@ -17,6 +17,7 @@ def query_points(dataset, scale, locs):
     shape = (n5.domain[0].inclusive_max, n5.domain[1].inclusive_max, n5.domain[2].inclusive_max)
 
 
+    # TODO: There is probably a better way to get this from tensorstore?
     if info['type'] == 'neuroglancer_precomputed':
         blocksize = np.asarray(n5.spec().to_json()['scale_metadata']['chunk_size']) * config.CHUNK_MULTIPLIER  
     elif info['type'] in ['zarr', 'zarr-nested']:
@@ -27,7 +28,7 @@ def query_points(dataset, scale, locs):
     query_points[:,1] = locs[:,1] // downsample[1]
     query_points[:,2] = locs[:,2] // downsample[2]
 
-    bad_points = ((query_points < [0,0,0]) | (query_points >= np.array(shape)[0:3])).any(axis=1)
+    bad_points = ((query_points < n5.domain.inclusive_min[0:3]) | (query_points > n5.domain.inclusive_max[0:3])).any(axis=1)
     query_points[bad_points] = np.NaN
     if bad_points.all():
         # No valid points. The binning code will otherwise fail.
