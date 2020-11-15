@@ -217,7 +217,7 @@ class QueryColumnPointListResponse(BaseModel):
 @app.post('/query/dataset/{dataset}/s/{scale}/values_array', response_model=QueryColumnPointListResponse, tags=["query"])
 async def query_values_array(dataset: DataSetName, scale: int, locs : ColumnPointList):
     """Return segment IDs at given locations.
-       One 
+       Note: This function returns float(s). For segments, use values_array_string_response.
     """
 
     # Get a Nx3 array of points
