@@ -150,5 +150,22 @@ DATASOURCES = {
                 'path' : '/data/fields/flywire_seg/ws_190410_FAFB_v02_ws_size_threshold_200.zarr/'
             }
         }   
+    },
+    'fanc_v4' : {
+        'description' : 'Zetta.ai segmentation of FANCv4 ',
+        'type' : 'neuroglancer_precomputed',
+        'scales' : [0, 1, 2, 3, 4, 5],
+        'voxel_size' : [17.2,17.2,45],
+        'downsample_factor' : [[1,1,1], [2,2,1], [4,4,1], [8,8,1], [16,16,1], [32,32,1]],
+        'services' : ['query'],
+        'dtype' : 'uint64',
+        'width' : 1,
+        'tsinfo' : {
+            'driver' : 'neuroglancer_precomputed',
+            'kvstore': {
+                'driver': 'file',
+                'path': '/data/ssd_data/fanc_precomputed/full_run_v4/'
+            }
+        }
     }
 }
