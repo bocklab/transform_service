@@ -30,17 +30,20 @@ def query_points(dataset, scale, locs):
 
     bad_points = ((query_points < n5.domain.inclusive_min[0:3]) | (query_points > n5.domain.inclusive_max[0:3])).any(axis=1)
     query_points[bad_points] = np.NaN
+
+    error_value = np.NaN
+    if np.issubdtype(np.dtype(info["dtype"]), np.integer):
+        # Return 0 for integers [otherwise, np.NaN maps to MAX_VALUE
+        error_value = 0
+
     if bad_points.all():
         # No valid points. The binning code will otherwise fail.
-        error_value = np.NaN
-        if np.issubdtype(np.dtype(info["dtype"]), np.integer):
-            # Return 0 for integers [otherwise, np.NaN maps to MAX_VALUE
-            error_value = 0
         field = np.full((query_points.shape[0], info["width"]), error_value, dtype=info["dtype"])
     else:
         field = process.get_multiple_ids(query_points, n5,
                                         max_workers=config.MaxWorkers,
                                         blocksize=blocksize,
+                                        error_value=error_value,
                                         dtype=info["dtype"])
     return field
 

@@ -32,7 +32,7 @@ def _get_ids(vol, co):
     return co_id
 
 
-def get_multiple_ids(x, vol, dtype=None, max_workers=4, blocksize=np.array([512, 512, 32])):
+def get_multiple_ids(x, vol, dtype=None, max_workers=4, blocksize=np.array([512, 512, 32]), error_value=np.nan):
     """Return multiple segment IDs using cloudvolume.
 
     Parameters
@@ -97,7 +97,7 @@ def get_multiple_ids(x, vol, dtype=None, max_workers=4, blocksize=np.array([512,
     seg_ix = np.hstack(seg_ix)
 
     # Generate placeholder of NaNs. Get data width from the returned data.
-    ordered = np.full((x.shape[0], seg_ids.shape[1]), np.nan, dtype=dtype)
+    ordered = np.full((x.shape[0], seg_ids.shape[1]), error_value, dtype=dtype)
 
     # Populate with segment IDs
     ordered[seg_ix] = seg_ids
