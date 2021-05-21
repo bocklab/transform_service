@@ -52,12 +52,12 @@ def test_query_ffn1_values_string():
     #DATASOURCES['fafb-ffn1-20200412']['url'] = 'https://storage.googleapis.com/fafb-ffn1-20200412/segmentation'
     
     q1 = {
-            'x' : [87110, 0, 106110],
-            'y' : [63790, 0, 66106],
-            'z' : [5436, 0, 1968]
+            'x' : [87110, 0, 106110, 1231321231],
+            'y' : [63790, 0, 66106, -143],
+            'z' : [5436, 0, 1968, -24]
         }
 
     response = client.post("/query/dataset/fafb-ffn1-20200412-gcs/s/0/values_array_string_response", json=q1)
     assert response.status_code == 200
 
-    assert response.json() == {'values' : [["8678640431", "0", "2938732695"]]}
+    assert response.json() == {'values' : [["8678640431", "0", "2938732695", "0"]]}
