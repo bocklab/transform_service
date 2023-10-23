@@ -2,7 +2,7 @@
 import os
 
 # Number of cores used to parallel fetching of locations
-MaxWorkers = 32
+MaxWorkers = 16
 
 # Max number of locations per query
 MaxLocations = 10e9

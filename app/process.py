@@ -91,7 +91,7 @@ def get_multiple_ids(x, vol, dtype=None, max_workers=4, blocksize=np.array([512,
 
         seg_ids = np.vstack(result)
 
-        pool.clear()
+        #pool.clear()
 
     # Turn list of list of indices into a flat array
     seg_ix = np.hstack(seg_ix)
